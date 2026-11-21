@@ -1,0 +1,11 @@
+{
+  "name": "peel-it-off",
+  "version": "1.0.0",
+  "description": "《撕个痛快！》解压休闲小游戏 — Android APP + 微信小程序 + H5 三端源码",
+  "private": true,
+  "scripts": {
+    "sync": "node scripts/sync-assets.js",
+    "verify": "node scripts/verify-all.js",
+    "test": "node scripts/sync-assets.js && node scripts/verify-all.js"
+  }
+}

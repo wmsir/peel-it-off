@@ -1,0 +1,14 @@
+{
+  "pages": [
+    "pages/index/index"
+  ],
+  "window": {
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#FAF6EE",
+    "navigationBarTitleText": "撕个痛快！",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#FAF6EE"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

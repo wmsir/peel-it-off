@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#faf6ee" />
+  <title>撕个痛快！Peel It Off — 解压小游戏</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="workbench-layout">
+    <!-- 主游戏手机视口（9:16 比例；Android APP 与移动端自动全屏沉浸） -->
+    <main class="phone-shell" id="phone-shell">
+      <!-- 顶部导航栏 -->
+      <header class="top-hud">
+        <div class="level-pill" id="btn-level-pick" title="点击切换已解锁关卡">
+          <span class="level-num" id="hud-level">第 1 关</span>
+          <span class="level-title" id="hud-title">快递开箱</span>
+        </div>
+        <div class="hud-right">
+          <div class="remain-badge" title="剩余胶带数">
+            <span class="tape-dot"></span>
+            <span id="hud-remain">12</span>
+          </div>
+          <button class="icon-btn" id="btn-sound" title="开关音效" aria-label="开关音效">🔊</button>
+          <button class="icon-btn" id="btn-restart" title="重开本关" aria-label="重开本关">↻</button>
+        </div>
+      </header>
+
+      <!-- 顶部：彩色胶带回收卷芯区 -->
+      <section class="spool-dock" aria-label="胶带回收卷芯区">
+        <div class="spool-row" id="spool-row"></div>
+        <div class="queue-pill" id="queue-pill">待进场卷芯：2 卷</div>
+      </section>
+
+      <!-- 中部：手指暂存槽（5格 + 1个广告扩展格） -->
+      <section class="tray-section" aria-label="临时暂存区">
+        <div class="tray-header">
+          <span class="tray-label">临时暂存区</span>
+          <span class="tray-tip" id="tray-tip">颜色未匹配将暂存于此，满格即卡死</span>
+        </div>
+        <div class="tray-slots" id="tray-slots"></div>
+      </section>
+
+      <!-- 核心画布区：层叠胶带 & 终极保护膜 -->
+      <section class="stage-wrap" id="stage-wrap">
+        <canvas id="board-canvas"></canvas>
+        <div class="mode-banner hidden" id="cutter-banner">
+          <span>✂️ 破障美工刀已就绪：点击<strong>任意</strong>被压住的胶带强行抽出！</span>
+          <button class="banner-cancel" id="btn-cancel-cutter">取消</button>
+        </div>
+        <div class="film-hint hidden" id="film-hint">
+          <div class="film-hint-arrow">↓</div>
+          <div class="film-hint-text">按住从上往下撕开最后一层高光保护膜！</div>
+        </div>
+        <div class="toast hidden" id="game-toast"></div>
+      </section>
+
+      <!-- 底部：三大救命道具栏 -->
+      <footer class="prop-bar" aria-label="救命道具栏">
+        <button class="prop-btn" id="prop-cutter" data-prop="cutter">
+          <span class="prop-icon">✂️</span>
+          <span class="prop-name">破障美工刀</span>
+          <span class="prop-badge" id="badge-cutter">1</span>
+        </button>
+        <button class="prop-btn" id="prop-shuffle" data-prop="shuffle">
+          <span class="prop-icon">🌀</span>
+          <span class="prop-name">换色洗牌</span>
+          <span class="prop-badge" id="badge-shuffle">1</span>
+        </button>
+        <button class="prop-btn" id="prop-magnet" data-prop="magnet">
+          <span class="prop-icon">🧲</span>
+          <span class="prop-name">一键收卷</span>
+          <span class="prop-badge" id="badge-magnet">1</span>
+        </button>
+      </footer>
+
+      <!-- 全屏飞行丝带 & 粒子礼花画布 -->
+      <canvas id="fx-canvas"></canvas>
+
+      <!-- 弹窗：移动端/Android 选关面板 -->
+      <div class="modal-backdrop hidden" id="level-modal">
+        <div class="modal-card">
+          <h2 class="modal-title">选择体验关卡</h2>
+          <div class="mobile-jump-list" id="mobile-jump-list"></div>
+          <button class="btn-ghost" id="btn-close-level-modal">关闭</button>
+        </div>
+      </div>
+
+      <!-- 弹窗：模拟激励视频广告（Android 接 AdMob/穿山甲后自动走原生 SDK） -->
+      <div class="modal-backdrop hidden" id="ad-modal">
+        <div class="modal-card ad-card">
+          <div class="ad-tag">激励视频广告 · IAA 变现模块</div>
+          <div class="ad-screen">
+            <div class="ad-emoji">🍜💻</div>
+            <div class="ad-headline" id="ad-reward-title">正在解锁奖励...</div>
+            <p class="ad-sub">破产程序员自救广告位<br/>本条广告预估贡献收益 <strong>+¥0.028</strong></p>
+            <div class="ad-progress-track">
+              <div class="ad-progress-fill" id="ad-progress-fill"></div>
+            </div>
+            <div class="ad-countdown" id="ad-countdown">广告剩余 2.4 秒...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 弹窗：卡死失败 / 复活 -->
+      <div class="modal-backdrop hidden" id="fail-modal">
+        <div class="modal-card fail-card">
+          <div class="modal-emoji">😵‍💫</div>
+          <h2 class="modal-title">胶带缠成死结了！</h2>
+          <p class="modal-desc" id="fail-desc">只差最后几条就通关了，甘心重来吗？</p>
+          <button class="btn-primary ad-cta" id="btn-revive">
+            <span>🎬 看广告复活（清空暂存区并收卷）</span>
+          </button>
+          <button class="btn-ghost" id="btn-fail-restart">不看广告，重新撕这关</button>
+        </div>
+      </div>
+
+      <!-- 弹窗：通关彩蛋展示 -->
+      <div class="modal-backdrop hidden" id="win-modal">
+        <div class="modal-card win-card">
+          <div class="win-stamp">强迫症极度舒适 ✓</div>
+          <div class="prize-reveal" id="prize-reveal">
+            <div class="prize-icon" id="prize-icon">🍜</div>
+            <div class="prize-name" id="prize-name">防脱洗发水 + 5包牛肉面</div>
+            <div class="prize-quote" id="prize-quote">“把烦心事一条条撕光的感觉，真爽！”</div>
+          </div>
+          <div class="win-stats">
+            <div class="stat-item">
+              <span class="stat-label">撕掉胶带</span>
+              <span class="stat-val" id="win-tapes">12 条</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">最高连击</span>
+              <span class="stat-val" id="win-combo">x6</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">击败全国</span>
+              <span class="stat-val" id="win-rank">94%</span>
+            </div>
+          </div>
+          <button class="btn-primary" id="btn-next-level">撕下一关 →</button>
+          <button class="btn-ghost" id="btn-share-mock">📤 炫耀战绩</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- 桌面浏览器调试台（在 Android APP 和手机屏幕下自动隐藏） -->
+    <aside class="dev-panel" aria-label="开发者验证面板">
+      <div class="dev-header">
+        <span class="dev-badge">Web / Android 双端源</span>
+        <h1>《撕个痛快！》</h1>
+        <p class="dev-subtitle">破产程序员 ¥2,000 自救版 v1.0</p>
+      </div>
+
+      <div class="dev-card">
+        <h3>🎧 体验指南（建议打开声音）</h3>
+        <ul class="dev-list">
+          <li><strong>点击最上层胶带</strong>（带微微翘角）：体验程序化合成“嘶啦”ASMR与卷边撕裂动画。</li>
+          <li><strong>点击被压住的胶带</strong>：震动晃动并白边高亮压住它的上层胶带。</li>
+          <li><strong>颜色匹配卷芯</strong>：飞入连击变调，收满 3 条爆裂打包并自动级联吸走暂存区同色胶带！</li>
+          <li><strong>撕光后别走</strong>：下滑撕开最后一张高光保护膜，揭晓打工人解压彩蛋！</li>
+        </ul>
+      </div>
+
+      <div class="dev-card revenue-card">
+        <h3>💰 模拟 IAA 广告账本（按 eCPM ¥28 估）</h3>
+        <div class="rev-grid">
+          <div class="rev-metric">
+            <span class="rev-label">本局触发广告</span>
+            <strong class="rev-val" id="dev-ad-count">0 次</strong>
+          </div>
+          <div class="rev-metric">
+            <span class="rev-label">单用户估收</span>
+            <strong class="rev-val accent" id="dev-ad-money">¥0.000</strong>
+          </div>
+          <div class="rev-metric">
+            <span class="rev-label">若 5000 DAU 日收</span>
+            <strong class="rev-val" id="dev-dau-money">¥0 / 天</strong>
+          </div>
+          <div class="rev-metric">
+            <span class="rev-label">距回本 ¥2000</span>
+            <strong class="rev-val" id="dev-breakeven">待触发</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="dev-card">
+        <h3>🧪 快速选关调试</h3>
+        <div class="level-jump-grid" id="level-jump-grid">
+          <button class="jump-btn active" data-lvl="0">L1 爽感入门 (12)</button>
+          <button class="jump-btn" data-lvl="1">L2 老板PPT (24)</button>
+          <button class="jump-btn" data-lvl="2">L3 涨租单 (33)</button>
+          <button class="jump-btn" data-lvl="3">L4 Bug墙 (42)</button>
+          <button class="jump-btn" data-lvl="4">L5 存款箱 (51)</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="audio.js"></script>
+  <script src="levels.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
