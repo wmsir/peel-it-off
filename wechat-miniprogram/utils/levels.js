@@ -12,7 +12,7 @@
   'use strict';
 
   const LOGICAL_W = 360;
-  const LOGICAL_H = 390;
+  const LOGICAL_H = 440;
 
   const TAPE_COLORS = [
     { id: 'red',    name: '樱桃红', hex: '#EF476F', dark: '#C82D53', light: '#FF85A1', pattern: 'stripe', mark: '▲' },
@@ -343,89 +343,89 @@
 
       if (layoutType === 'parcel') {
         const presets = [
-          { x:   0, y:   0, deg: -10, len: 192 },
-          { x:   0, y:   0, deg:  82, len: 184 },
-          { x:   0, y: -24, deg:  26, len: 176 },
-          { x:   2, y:  24, deg: -24, len: 176 },
-          { x: -34, y: -44, deg: -42, len: 152 },
-          { x:  36, y:  42, deg: -40, len: 152 },
-          { x:  38, y: -40, deg:  44, len: 152 },
-          { x: -36, y:  44, deg:  42, len: 152 },
-          { x: -72, y:  -6, deg:  86, len: 154 },
-          { x:  72, y:   6, deg: -85, len: 154 },
-          { x: -10, y: -88, deg:  -4, len: 156 },
-          { x:  12, y:  88, deg:   4, len: 156 }
+          { x:   0, y:    0, deg: -10, len: 244 },
+          { x:   0, y:    0, deg:  82, len: 236 },
+          { x:   0, y:  -34, deg:  24, len: 226 },
+          { x:   2, y:   34, deg: -24, len: 226 },
+          { x: -46, y:  -58, deg: -40, len: 206 },
+          { x:  48, y:   56, deg: -38, len: 206 },
+          { x:  48, y:  -54, deg:  42, len: 206 },
+          { x: -46, y:   58, deg:  40, len: 206 },
+          { x: -94, y:   16, deg:  87, len: 176 },
+          { x:  94, y:  -16, deg: -87, len: 176 },
+          { x: -24, y: -126, deg:  -6, len: 172 },
+          { x:  24, y:  126, deg:   6, len: 172 }
         ];
         const p = presets[i % presets.length];
-        cx = cx0 + p.x + (rng() - 0.5) * 8;
-        cy = cy0 + p.y + (rng() - 0.5) * 8;
-        angle = (p.deg + (rng() - 0.5) * 6) * (Math.PI / 180);
+        cx = cx0 + p.x + (rng() - 0.5) * 6;
+        cy = cy0 + p.y + (rng() - 0.5) * 6;
+        angle = (p.deg + (rng() - 0.5) * 5) * (Math.PI / 180);
         length = p.len;
-        width = 36;
+        width = 46;
       } else if (i >= count - 4) {
         const q = i - (count - 4);
         const qCoords = [
-          { x: -66, y: -84, deg: -18 },
-          { x:  66, y: -80, deg:  22 },
-          { x: -64, y:  84, deg:  20 },
-          { x:  66, y:  82, deg: -18 }
+          { x: -84, y: -122, deg: -18 },
+          { x:  84, y: -118, deg:  20 },
+          { x: -82, y:  122, deg:  20 },
+          { x:  84, y:  118, deg: -18 }
         ];
         const qc = qCoords[q];
-        cx = cx0 + qc.x + (rng() - 0.5) * 14;
-        cy = cy0 + qc.y + (rng() - 0.5) * 14;
-        angle = (qc.deg + (rng() - 0.5) * 12) * (Math.PI / 180);
-        length = 128 + rng() * 18;
-        width = 33;
+        cx = cx0 + qc.x + (rng() - 0.5) * 8;
+        cy = cy0 + qc.y + (rng() - 0.5) * 8;
+        angle = (qc.deg + (rng() - 0.5) * 10) * (Math.PI / 180);
+        length = 126 + rng() * 14;
+        width = 42;
       } else if (layoutType === 'weave') {
         const band = i % 4;
-        const jitterX = (rng() - 0.5) * 24;
-        const jitterY = (rng() - 0.5) * 24;
+        const jitterX = (rng() - 0.5) * 30;
+        const jitterY = (rng() - 0.5) * 30;
         if (band === 0) {
           cx = cx0 + jitterX;
-          cy = cy0 + (-88 + ((i / 4) % 4) * 58) + (rng() - 0.5) * 12;
+          cy = cy0 + (-114 + ((i / 4) % 4) * 76) + (rng() - 0.5) * 14;
           angle = ((rng() - 0.5) * 16) * (Math.PI / 180);
-          length = 165 + rng() * 32;
+          length = 200 + rng() * 38;
         } else if (band === 1) {
-          cx = cx0 + (-78 + ((i / 4) % 4) * 52) + (rng() - 0.5) * 12;
+          cx = cx0 + (-88 + ((i / 4) % 4) * 58) + (rng() - 0.5) * 14;
           cy = cy0 + jitterY;
           angle = (90 + (rng() - 0.5) * 16) * (Math.PI / 180);
-          length = 160 + rng() * 30;
+          length = 198 + rng() * 36;
         } else if (band === 2) {
-          cx = cx0 + (rng() - 0.5) * 95;
-          cy = cy0 + (rng() - 0.5) * 105;
+          cx = cx0 + (rng() * 2 - 1) * 105;
+          cy = cy0 + (rng() * 2 - 1) * 126;
           angle = (36 + (rng() - 0.5) * 18) * (Math.PI / 180);
-          length = 152 + rng() * 34;
+          length = 195 + rng() * 38;
         } else {
-          cx = cx0 + (rng() - 0.5) * 95;
-          cy = cy0 + (rng() - 0.5) * 105;
+          cx = cx0 + (rng() * 2 - 1) * 105;
+          cy = cy0 + (rng() * 2 - 1) * 126;
           angle = (-36 + (rng() - 0.5) * 18) * (Math.PI / 180);
-          length = 152 + rng() * 34;
+          length = 195 + rng() * 38;
         }
-        width = 34;
+        width = 42;
       } else if (layoutType === 'starburst') {
         const ring = Math.floor(i / 6);
         const spoke = (i % 6) * (Math.PI / 6) + ring * 0.23 + (rng() - 0.5) * 0.14;
-        const radius = (i % 3 === 0 ? 18 : 54) + (rng() - 0.5) * 24;
+        const radius = (i % 3 === 0 ? 26 : 70) + (rng() - 0.5) * 28;
         cx = cx0 + Math.cos(spoke) * radius;
-        cy = cy0 + Math.sin(spoke) * radius * 1.08;
+        cy = cy0 + Math.sin(spoke) * radius * 1.24;
         angle = spoke + Math.PI * 0.5 + (rng() - 0.5) * 0.25;
-        length = 148 + rng() * 38;
-        width = 33;
+        length = 186 + rng() * 40;
+        width = 40;
       } else {
         const phase = i % 5;
-        const spreadX = 86 - layerFrac * 18;
-        const spreadY = 104 - layerFrac * 20;
+        const spreadX = 94 - layerFrac * 16;
+        const spreadY = 128 - layerFrac * 20;
         cx = cx0 + (rng() * 2 - 1) * spreadX;
         cy = cy0 + (rng() * 2 - 1) * spreadY;
         const baseAngles = [0, 90, 42, -42, 20];
         angle = (baseAngles[phase] + (rng() - 0.5) * 22) * (Math.PI / 180);
-        length = 138 + rng() * 44;
-        width = 32;
+        length = 176 + rng() * 48;
+        width = 39;
       }
 
       const halfSpanX = Math.abs(Math.cos(angle)) * (length * 0.5) + Math.abs(Math.sin(angle)) * (width * 0.5);
       const halfSpanY = Math.abs(Math.sin(angle)) * (length * 0.5) + Math.abs(Math.cos(angle)) * (width * 0.5);
-      const margin = 20;
+      const margin = 14;
       cx = Math.max(margin + halfSpanX, Math.min(LOGICAL_W - margin - halfSpanX, cx));
       cy = Math.max(margin + halfSpanY, Math.min(LOGICAL_H - margin - halfSpanY, cy));
 

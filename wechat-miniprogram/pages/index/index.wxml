@@ -107,7 +107,7 @@
 
     <view wx:if="{{showFilmHint}}" class="film-hint">
       <text class="film-hint-arrow">↓</text>
-      <text>按住下滑，撕开最后一层高光保护膜！</text>
+      <text>点一下或下滑，撕开最后一层保护膜！</text>
     </view>
 
     <view wx:if="{{toastMsg}}" class="toast">{{toastMsg}}</view>

@@ -82,6 +82,7 @@ Page({
 
     this.filmProgress = 0;
     this.filmDragging = false;
+    this.filmMoved = false;
     this.filmLastY = 0;
     this.filmSnapping = false;
 
@@ -101,21 +102,29 @@ Page({
     this.ctx = null;
     this.dpr = 2;
     this.canvasW = 360;
-    this.canvasH = 390;
+    this.canvasH = 440;
     this.canvasLeft = 0;
     this.canvasTop = 0;
     this.boardScale = 1;
     this.boardOffX = 0;
     this.boardOffY = 0;
+    this._onWinResize = null;
 
     this.loadLevel(this.levelIndex, 0);
   },
 
   onReady() {
     this._initCanvas(0);
+    if (typeof wx !== 'undefined' && typeof wx.onWindowResize === 'function') {
+      this._onWinResize = () => this._refreshCanvasMetrics();
+      wx.onWindowResize(this._onWinResize);
+    }
   },
 
   onUnload() {
+    if (this._onWinResize && typeof wx !== 'undefined' && typeof wx.offWindowResize === 'function') {
+      wx.offWindowResize(this._onWinResize);
+    }
     if (this.canvas && this._rafId) {
       try { this.canvas.cancelAnimationFrame(this._rafId); } catch (_) {}
     }
@@ -141,6 +150,26 @@ Page({
   },
 
   noop() {},
+
+  _refreshCanvasMetrics() {
+    if (!this.canvas) return;
+    const query = wx.createSelectorQuery().in(this);
+    query.select('#board-canvas').fields({ size: true, rect: true }).exec((res) => {
+      const info = res && res[0];
+      if (!info || !info.width || !info.height) return;
+      this.canvasW = info.width;
+      this.canvasH = info.height;
+      this.canvasLeft = info.left || 0;
+      this.canvasTop = info.top || 0;
+      this.canvas.width = Math.round(this.canvasW * this.dpr);
+      this.canvas.height = Math.round(this.canvasH * this.dpr);
+      const scaleX = this.canvasW / LOGICAL_W;
+      const scaleY = this.canvasH / LOGICAL_H;
+      this.boardScale = Math.min(scaleX, scaleY);
+      this.boardOffX = (this.canvasW - LOGICAL_W * this.boardScale) * 0.5;
+      this.boardOffY = (this.canvasH - LOGICAL_H * this.boardScale) * 0.5;
+    });
+  },
 
   _initCanvas(attempt) {
     const query = wx.createSelectorQuery().in(this);
@@ -734,19 +763,34 @@ Page({
     if (this.phase === 'film') {
       if (this.filmSnapping) return;
       this.filmDragging = true;
+      this.filmMoved = false;
       this.filmLastY = pos.y;
       return;
     }
 
     if (this.phase !== 'playing') return;
 
+    // Pass 1：拇指优先吸附可撕的最顶层胶带（避免蹭到旁边被压住的胶带）
     let hit = null;
     for (let i = this.tapes.length - 1; i >= 0; i--) {
       const t = this.tapes[i];
       if (t.state !== 'idle') continue;
-      if (pointInTape(pos.x, pos.y, t, 8)) {
+      if (!pointInTape(pos.x, pos.y, t, 10)) continue;
+      if (this.cutterMode || getBlockingTapes(t, this.tapes).length === 0) {
         hit = t;
         break;
+      }
+    }
+
+    // Pass 2：若没点到可撕胶带，再检测是否点到了被压住的胶带并给出清晰指引
+    if (!hit) {
+      for (let i = this.tapes.length - 1; i >= 0; i--) {
+        const t = this.tapes[i];
+        if (t.state !== 'idle') continue;
+        if (pointInTape(pos.x, pos.y, t, 6)) {
+          hit = t;
+          break;
+        }
       }
     }
     if (!hit) return;
@@ -756,8 +800,9 @@ Page({
 
     if (isBlocked && !this.cutterMode) {
       hit.shakeTime = 0.28;
-      blockers.forEach((b) => { b.highlightTime = 0.42; });
+      blockers.forEach((b) => { b.highlightTime = 0.55; });
       this.audio.playBlocked();
+      this.showToast('👆 被压住了！先撕上面发亮翘角的胶带');
       return;
     }
 
@@ -781,6 +826,7 @@ Page({
       if (traySlotIdx === -1) {
         this.audio.playBlocked();
         this.showToast('暂存区已满！请撕匹配顶部颜色的胶带');
+        this._checkWinOrFail();
         return;
       }
     }
@@ -820,11 +866,15 @@ Page({
     const dy = pos.y - this.filmLastY;
     this.filmLastY = pos.y;
 
+    if (dy > 1.5) {
+      this.filmMoved = true;
+    }
+
     if (dy > 0.2) {
       this.filmProgress = Math.min(1, this.filmProgress + dy / (LOGICAL_H * 0.72));
       this.audio.updateFilmPeel(Math.min(1, dy / 14));
       if (Math.random() < 0.32) this.audio.vibrate('light');
-      if (this.filmProgress >= 0.72) {
+      if (this.filmProgress >= 0.38) {
         this.filmDragging = false;
         this.filmSnapping = true;
         this.audio.playTapePeel(1.3);
@@ -838,13 +888,13 @@ Page({
     if (this.phase === 'film' && this.filmDragging) {
       this.filmDragging = false;
       this.audio.stopFilmPeel();
-      if (this.filmProgress < 0.72) {
-        this.filmProgress = Math.min(0.75, this.filmProgress + 0.14);
-        this.audio.playTapePeel(0.5);
-        if (this.filmProgress >= 0.72) {
-          this.filmSnapping = true;
-          this.audio.playTapePeel(1.3);
-        }
+      if (!this.filmMoved || this.filmProgress >= 0.35) {
+        this.filmSnapping = true;
+        this.audio.playTapePeel(1.3);
+      } else {
+        this.filmProgress = Math.min(1, this.filmProgress + 0.35);
+        this.filmSnapping = true;
+        this.audio.playTapePeel(1.1);
       }
     }
   },
@@ -965,6 +1015,7 @@ Page({
     if (this.phase !== 'playing') return;
 
     const hasBoardTapes = this.tapes.some((t) => t.state !== 'done');
+    const hasPeeling = this.tapes.some((t) => t.state === 'peeling');
     const hasSpools = this.activeSpools.some((s) => s !== null) || this.spoolQueue.length > 0;
     const hasTrayItems = this.tray.some((it) => it !== null);
     const hasInFlight = this.ribbons.length > 0;
@@ -975,7 +1026,7 @@ Page({
       return;
     }
 
-    if (!hasInFlight && !anyPopping) {
+    if (!hasInFlight && !anyPopping && !hasPeeling) {
       let seatedCount = 0;
       for (let i = 0; i < this.unlockedTray; i++) {
         if (this.tray[i] && this.tray[i].state === 'seated') seatedCount++;
@@ -1202,8 +1253,8 @@ Page({
   },
 
   _drawBaseCard(ctx) {
-    const padX = 28;
-    const padY = 30;
+    const padX = 10;
+    const padY = 10;
     const w = LOGICAL_W - padX * 2;
     const h = LOGICAL_H - padY * 2;
 
@@ -1320,7 +1371,7 @@ Page({
       }
 
       if (blocked && !this.cutterMode) {
-        ctx.fillStyle = 'rgba(25, 18, 12, 0.12)';
+        ctx.fillStyle = 'rgba(20, 14, 10, 0.22)';
         ctx.fillRect(-L * 0.5, -W * 0.5, remainLen, W);
       }
       ctx.restore();
@@ -1328,15 +1379,15 @@ Page({
       ctx.save();
       this._traceTapeSegmentPath(ctx, -L * 0.5, -W * 0.5, remainLen, W, true, p === 0);
       ctx.strokeStyle = tape.highlightTime > 0
-        ? '#ffffff'
+        ? '#fef08a'
         : (this.cutterMode ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.45)');
-      ctx.lineWidth = tape.highlightTime > 0 ? 3.5 : 1.25;
+      ctx.lineWidth = tape.highlightTime > 0 ? 4.5 : 1.25;
       ctx.stroke();
       ctx.restore();
     }
 
     if (p === 0 && (!blocked || this.cutterMode)) {
-      const curlSize = 11 + Math.sin(timeSec * 4.2 + tape.z * 0.8) * 1.6;
+      const curlSize = 15 + Math.sin(timeSec * 4.2 + tape.z * 0.8) * 1.8;
       ctx.save();
       ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
       ctx.shadowBlur = 4;
@@ -1414,8 +1465,8 @@ Page({
   },
 
   _drawProtectiveFilm(ctx, timeSec) {
-    const padX = 28;
-    const padY = 30;
+    const padX = 10;
+    const padY = 10;
     const w = LOGICAL_W - padX * 2;
     const h = LOGICAL_H - padY * 2;
     const p = Math.max(0, Math.min(1, this.filmProgress));
@@ -1425,9 +1476,10 @@ Page({
       ctx.save();
       this._roundRectPath(ctx, padX, peelY, w, padY + h - peelY, 16);
       const filmGrad = ctx.createLinearGradient(padX, peelY, padX + w, padY + h);
-      filmGrad.addColorStop(0, 'rgba(255, 255, 255, 0.58)');
-      filmGrad.addColorStop(0.45, 'rgba(186, 230, 253, 0.34)');
-      filmGrad.addColorStop(1, 'rgba(147, 197, 253, 0.45)');
+      filmGrad.addColorStop(0, 'rgba(224, 242, 254, 0.72)');
+      filmGrad.addColorStop(0.45, 'rgba(186, 230, 253, 0.48)');
+      filmGrad.addColorStop(0.75, 'rgba(255, 255, 255, 0.64)');
+      filmGrad.addColorStop(1, 'rgba(147, 197, 253, 0.55)');
       ctx.fillStyle = filmGrad;
       ctx.fill();
 
@@ -1435,21 +1487,21 @@ Page({
       const shineX = ((timeSec * 140) % (w + 180)) - 90;
       const sg = ctx.createLinearGradient(padX + shineX, padY, padX + shineX + 70, padY + h);
       sg.addColorStop(0, 'rgba(255, 255, 255, 0)');
-      sg.addColorStop(0.5, 'rgba(255, 255, 255, 0.55)');
+      sg.addColorStop(0.5, 'rgba(255, 255, 255, 0.65)');
       sg.addColorStop(1, 'rgba(255, 255, 255, 0)');
       ctx.fillStyle = sg;
       ctx.fillRect(padX, peelY, w, h);
       ctx.restore();
     }
 
-    const flapH = Math.min(72, Math.max(22, p * h * 0.55));
+    const flapH = Math.min(72, Math.max(24, p * h * 0.55));
     ctx.save();
     ctx.shadowColor = 'rgba(15, 23, 42, 0.28)';
     ctx.shadowBlur = 16;
     ctx.shadowOffsetY = 8;
     const curlGrad = ctx.createLinearGradient(0, peelY, 0, peelY + flapH);
-    curlGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-    curlGrad.addColorStop(1, 'rgba(186, 230, 253, 0.65)');
+    curlGrad.addColorStop(0, 'rgba(255, 255, 255, 0.96)');
+    curlGrad.addColorStop(1, 'rgba(186, 230, 253, 0.70)');
     this._roundRectPath(ctx, padX - 4, peelY, w + 8, flapH, 12);
     ctx.fillStyle = curlGrad;
     ctx.fill();
@@ -1457,13 +1509,13 @@ Page({
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    this._roundRectPath(ctx, LOGICAL_W * 0.5 - 46, peelY + flapH - 12, 92, 26, 13);
+    this._roundRectPath(ctx, LOGICAL_W * 0.5 - 78, peelY + flapH - 12, 156, 30, 15);
     ctx.fillStyle = '#f59e0b';
     ctx.fill();
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 12px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('↓ 下滑撕膜', LOGICAL_W * 0.5, peelY + flapH + 5);
+    ctx.fillText('👇 点一下或下滑撕膜', LOGICAL_W * 0.5, peelY + flapH + 7);
     ctx.restore();
   },
 

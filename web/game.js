@@ -90,6 +90,7 @@
 
       this.filmProgress = 0;
       this.filmDragging = false;
+      this.filmMoved = false;
       this.filmLastY = 0;
       this.filmSnapping = false;
 
@@ -123,8 +124,9 @@
       };
 
       this._bindEvents();
-      this._resizeCanvases();
       this.loadLevel(this.levelIndex, 0);
+      this._resizeCanvases();
+      requestAnimationFrame(() => this._resizeCanvases());
       requestAnimationFrame((t) => this._loop(t));
     }
 
@@ -165,6 +167,11 @@
 
     _bindEvents() {
       window.addEventListener('resize', () => this._resizeCanvases());
+      if (typeof ResizeObserver !== 'undefined') {
+        const ro = new ResizeObserver(() => this._resizeCanvases());
+        ro.observe(this.stageWrap);
+        ro.observe(this.phoneShell);
+      }
 
       this.boardCanvas.addEventListener('pointerdown', (e) => this._onBoardPointerDown(e));
       window.addEventListener('pointermove', (e) => this._onBoardPointerMove(e));
@@ -268,18 +275,33 @@
       this.dpr = Math.min(window.devicePixelRatio || 1, 2);
 
       const bRect = this.stageWrap.getBoundingClientRect();
-      this.boardCanvas.width = Math.max(1, Math.round(bRect.width * this.dpr));
-      this.boardCanvas.height = Math.max(1, Math.round(bRect.height * this.dpr));
+      if (bRect.width > 0 && bRect.height > 0) {
+        this.boardCanvas.width = Math.max(1, Math.round(bRect.width * this.dpr));
+        this.boardCanvas.height = Math.max(1, Math.round(bRect.height * this.dpr));
 
-      const scaleX = bRect.width / LOGICAL_W;
-      const scaleY = bRect.height / LOGICAL_H;
-      this.boardScale = Math.min(scaleX, scaleY);
-      this.boardOffX = (bRect.width - LOGICAL_W * this.boardScale) * 0.5;
-      this.boardOffY = (bRect.height - LOGICAL_H * this.boardScale) * 0.5;
+        const scaleX = bRect.width / LOGICAL_W;
+        const scaleY = bRect.height / LOGICAL_H;
+        this.boardScale = Math.min(scaleX, scaleY);
+        this.boardOffX = (bRect.width - LOGICAL_W * this.boardScale) * 0.5;
+        this.boardOffY = (bRect.height - LOGICAL_H * this.boardScale) * 0.5;
+      }
 
       const pRect = this.phoneShell.getBoundingClientRect();
-      this.fxCanvas.width = Math.max(1, Math.round(pRect.width * this.dpr));
-      this.fxCanvas.height = Math.max(1, Math.round(pRect.height * this.dpr));
+      if (pRect.width > 0 && pRect.height > 0) {
+        this.fxCanvas.width = Math.max(1, Math.round(pRect.width * this.dpr));
+        this.fxCanvas.height = Math.max(1, Math.round(pRect.height * this.dpr));
+      }
+    }
+
+    _ensureCanvasSynced() {
+      const bRect = this.stageWrap.getBoundingClientRect();
+      if (bRect.width <= 0 || bRect.height <= 0) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const targetW = Math.max(1, Math.round(bRect.width * dpr));
+      const targetH = Math.max(1, Math.round(bRect.height * dpr));
+      if (Math.abs(this.boardCanvas.width - targetW) > 1 || Math.abs(this.boardCanvas.height - targetH) > 1) {
+        this._resizeCanvases();
+      }
     }
 
     _logicalToFx(lx, ly) {
@@ -799,6 +821,7 @@
 
     _onBoardPointerDown(e) {
       this.audio.init();
+      this._ensureCanvasSynced();
       const bRect = this.stageWrap.getBoundingClientRect();
       const lx = (e.clientX - bRect.left - this.boardOffX) / this.boardScale;
       const ly = (e.clientY - bRect.top - this.boardOffY) / this.boardScale;
@@ -806,19 +829,34 @@
       if (this.phase === 'film') {
         if (this.filmSnapping) return;
         this.filmDragging = true;
+        this.filmMoved = false;
         this.filmLastY = ly;
         return;
       }
 
       if (this.phase !== 'playing') return;
 
+      // Pass 1：拇指优先吸附可撕的最顶层胶带（避免蹭到旁边被压住的胶带）
       let hit = null;
       for (let i = this.tapes.length - 1; i >= 0; i--) {
         const t = this.tapes[i];
         if (t.state !== 'idle') continue;
-        if (pointInTape(lx, ly, t, 7)) {
+        if (!pointInTape(lx, ly, t, 10)) continue;
+        if (this.cutterMode || getBlockingTapes(t, this.tapes).length === 0) {
           hit = t;
           break;
+        }
+      }
+
+      // Pass 2：若没点到可撕胶带，再检测是否点到了被压住的胶带并给出清晰指引
+      if (!hit) {
+        for (let i = this.tapes.length - 1; i >= 0; i--) {
+          const t = this.tapes[i];
+          if (t.state !== 'idle') continue;
+          if (pointInTape(lx, ly, t, 6)) {
+            hit = t;
+            break;
+          }
         }
       }
 
@@ -829,8 +867,9 @@
 
       if (isBlocked && !this.cutterMode) {
         hit.shakeTime = 0.28;
-        blockers.forEach((b) => { b.highlightTime = 0.42; });
+        blockers.forEach((b) => { b.highlightTime = 0.55; });
         this.audio.playBlocked();
+        this.showToast('👆 被压住了！先撕上面发亮翘角的胶带');
         return;
       }
 
@@ -854,6 +893,7 @@
         if (traySlotIdx === -1) {
           this.audio.playBlocked();
           this.showToast('暂存区已满！请撕匹配顶部颜色的胶带');
+          this._checkWinOrFail();
           return;
         }
       }
@@ -895,13 +935,17 @@
       const dy = ly - this.filmLastY;
       this.filmLastY = ly;
 
+      if (dy > 1.5) {
+        this.filmMoved = true;
+      }
+
       if (dy > 0.2) {
         const deltaProg = dy / (LOGICAL_H * 0.72);
         this.filmProgress = Math.min(1, this.filmProgress + deltaProg);
         this.audio.updateFilmPeel(Math.min(1, dy / 14));
         if (Math.random() < 0.35) this.audio.vibrate(8);
 
-        if (this.filmProgress >= 0.72) {
+        if (this.filmProgress >= 0.38) {
           this.filmDragging = false;
           this.filmSnapping = true;
           this.audio.playTapePeel(1.3);
@@ -915,13 +959,13 @@
       if (this.phase === 'film' && this.filmDragging) {
         this.filmDragging = false;
         this.audio.stopFilmPeel();
-        if (this.filmProgress < 0.72) {
-          this.filmProgress = Math.min(0.75, this.filmProgress + 0.14);
-          this.audio.playTapePeel(0.5);
-          if (this.filmProgress >= 0.72) {
-            this.filmSnapping = true;
-            this.audio.playTapePeel(1.3);
-          }
+        if (!this.filmMoved || this.filmProgress >= 0.35) {
+          this.filmSnapping = true;
+          this.audio.playTapePeel(1.3);
+        } else {
+          this.filmProgress = Math.min(1, this.filmProgress + 0.35);
+          this.filmSnapping = true;
+          this.audio.playTapePeel(1.1);
         }
       }
     }
@@ -1044,6 +1088,7 @@
       if (this.phase !== 'playing') return;
 
       const hasBoardTapes = this.tapes.some((t) => t.state !== 'done');
+      const hasPeeling = this.tapes.some((t) => t.state === 'peeling');
       const hasSpools = this.activeSpools.some((s) => s !== null) || this.spoolQueue.length > 0;
       const hasTrayItems = this.tray.some((it) => it !== null);
       const hasInFlight = this.ribbons.length > 0;
@@ -1054,7 +1099,7 @@
         return;
       }
 
-      if (!hasInFlight && !anyPopping) {
+      if (!hasInFlight && !anyPopping && !hasPeeling) {
         let seatedCount = 0;
         for (let i = 0; i < this.unlockedTray; i++) {
           if (this.tray[i] && this.tray[i].state === 'seated') seatedCount++;
@@ -1246,6 +1291,7 @@
     }
 
     _renderBoard(timeSec) {
+      this._ensureCanvasSynced();
       const ctx = this.boardCtx;
       ctx.save();
       ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
@@ -1271,8 +1317,8 @@
     }
 
     _drawBaseCard(ctx) {
-      const padX = 28;
-      const padY = 30;
+      const padX = 10;
+      const padY = 10;
       const w = LOGICAL_W - padX * 2;
       const h = LOGICAL_H - padY * 2;
       const r = 20;
@@ -1400,7 +1446,7 @@
         }
 
         if (blocked && !this.cutterMode) {
-          ctx.fillStyle = 'rgba(25, 18, 12, 0.12)';
+          ctx.fillStyle = 'rgba(20, 14, 10, 0.22)';
           ctx.fillRect(-L * 0.5, -W * 0.5, remainLen, W);
         }
         ctx.restore();
@@ -1408,16 +1454,16 @@
         ctx.save();
         this._traceTapeSegmentPath(ctx, -L * 0.5, -W * 0.5, remainLen, W, true, p === 0);
         ctx.strokeStyle = tape.highlightTime > 0
-          ? '#ffffff'
+          ? '#fef08a'
           : (this.cutterMode ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.45)');
-        ctx.lineWidth = tape.highlightTime > 0 ? 3.5 : 1.25;
+        ctx.lineWidth = tape.highlightTime > 0 ? 4.5 : 1.25;
         ctx.stroke();
         ctx.restore();
       }
 
       if (p === 0 && (!blocked || this.cutterMode)) {
-        const breath = Math.sin(timeSec * 4.2 + tape.z * 0.8) * 1.6;
-        const curlSize = 11 + breath;
+        const breath = Math.sin(timeSec * 4.2 + tape.z * 0.8) * 1.8;
+        const curlSize = 15 + breath;
         ctx.save();
         ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
         ctx.shadowBlur = 4;
@@ -1560,8 +1606,8 @@
     }
 
     _drawProtectiveFilm(ctx, timeSec) {
-      const padX = 28;
-      const padY = 30;
+      const padX = 10;
+      const padY = 10;
       const w = LOGICAL_W - padX * 2;
       const h = LOGICAL_H - padY * 2;
       const p = Math.max(0, Math.min(1, this.filmProgress));
@@ -1571,10 +1617,10 @@
         ctx.save();
         this._roundRectPath(ctx, padX, peelY, w, padY + h - peelY, 16);
         const filmGrad = ctx.createLinearGradient(padX, peelY, padX + w, padY + h);
-        filmGrad.addColorStop(0, 'rgba(255, 255, 255, 0.58)');
-        filmGrad.addColorStop(0.4, 'rgba(186, 230, 253, 0.34)');
-        filmGrad.addColorStop(0.75, 'rgba(255, 255, 255, 0.52)');
-        filmGrad.addColorStop(1, 'rgba(147, 197, 253, 0.42)');
+        filmGrad.addColorStop(0, 'rgba(224, 242, 254, 0.72)');
+        filmGrad.addColorStop(0.45, 'rgba(186, 230, 253, 0.48)');
+        filmGrad.addColorStop(0.75, 'rgba(255, 255, 255, 0.64)');
+        filmGrad.addColorStop(1, 'rgba(147, 197, 253, 0.55)');
         ctx.fillStyle = filmGrad;
         ctx.fill();
 
@@ -1582,23 +1628,23 @@
         const shineX = ((timeSec * 140) % (w + 180)) - 90;
         const sg = ctx.createLinearGradient(padX + shineX, padY, padX + shineX + 70, padY + h);
         sg.addColorStop(0, 'rgba(255, 255, 255, 0)');
-        sg.addColorStop(0.5, 'rgba(255, 255, 255, 0.55)');
+        sg.addColorStop(0.5, 'rgba(255, 255, 255, 0.65)');
         sg.addColorStop(1, 'rgba(255, 255, 255, 0)');
         ctx.fillStyle = sg;
         ctx.fillRect(padX, peelY, w, h);
         ctx.restore();
       }
 
-      const flapH = Math.min(72, Math.max(22, p * h * 0.55));
+      const flapH = Math.min(72, Math.max(24, p * h * 0.55));
       ctx.save();
       ctx.shadowColor = 'rgba(15, 23, 42, 0.28)';
       ctx.shadowBlur = 16;
       ctx.shadowOffsetY = 8;
 
       const curlGrad = ctx.createLinearGradient(0, peelY, 0, peelY + flapH);
-      curlGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-      curlGrad.addColorStop(0.3, 'rgba(224, 242, 254, 0.86)');
-      curlGrad.addColorStop(1, 'rgba(186, 230, 253, 0.65)');
+      curlGrad.addColorStop(0, 'rgba(255, 255, 255, 0.96)');
+      curlGrad.addColorStop(0.3, 'rgba(224, 242, 254, 0.88)');
+      curlGrad.addColorStop(1, 'rgba(186, 230, 253, 0.70)');
 
       this._roundRectPath(ctx, padX - 4, peelY, w + 8, flapH, 12);
       ctx.fillStyle = curlGrad;
@@ -1607,15 +1653,15 @@
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      const tabW = 92;
-      const tabH = 26;
-      this._roundRectPath(ctx, LOGICAL_W * 0.5 - tabW * 0.5, peelY + flapH - 12, tabW, tabH, 13);
+      const tabW = 156;
+      const tabH = 30;
+      this._roundRectPath(ctx, LOGICAL_W * 0.5 - tabW * 0.5, peelY + flapH - 12, tabW, tabH, 15);
       ctx.fillStyle = '#f59e0b';
       ctx.fill();
       ctx.fillStyle = '#fff';
       ctx.font = '800 12px -apple-system, "PingFang SC", sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('↓ 下滑撕膜', LOGICAL_W * 0.5, peelY + flapH + 5);
+      ctx.fillText('👇 点一下或下滑撕膜', LOGICAL_W * 0.5, peelY + flapH + 7);
       ctx.restore();
     }
 
