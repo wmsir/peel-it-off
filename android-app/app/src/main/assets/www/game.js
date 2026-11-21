@@ -225,13 +225,24 @@
         }
       });
 
-      document.querySelectorAll('.jump-btn').forEach((btn) => {
+      this._renderDesktopLevelJump();
+    }
+
+    _renderDesktopLevelJump() {
+      const grid = document.getElementById('level-jump-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      global.PeelLevels.LEVEL_THEMES.forEach((t, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'jump-btn' + (idx === this.levelIndex ? ' active' : '');
+        btn.dataset.lvl = String(idx);
+        btn.textContent = `L${idx + 1} ${t.title} (${t.spools * 3})`;
         btn.addEventListener('click', () => {
-          const lvl = parseInt(btn.dataset.lvl, 10);
           this.retryCount = 0;
-          this.loadLevel(lvl, 0);
+          this.loadLevel(idx, 0);
           this._saveProgress();
         });
+        grid.appendChild(btn);
       });
     }
 
@@ -1297,7 +1308,7 @@
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
 
-      const isDarkCard = this.theme.cardBg === '#1e293b';
+      const isDarkCard = !!(this.theme.isDark || this.theme.cardBg === '#1e293b');
 
       ctx.fillStyle = isDarkCard ? '#f8fafc' : '#3a2f26';
       ctx.font = '800 16px -apple-system, "PingFang SC", sans-serif';

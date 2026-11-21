@@ -614,6 +614,7 @@
 .jump-list {
   display: flex;
   flex-direction: column;
+  max-height: 540rpx;
   margin: 20rpx 0 24rpx;
 }
 

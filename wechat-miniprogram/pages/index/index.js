@@ -126,7 +126,7 @@ Page({
 
   onShareAppMessage() {
     const title = this.theme
-      ? `我在《撕个痛快！》撕到第 ${this.levelIndex + 1} 关「${this.theme.title}」，超解压，来帮我借把美工刀！`
+      ? `我在《撕个痛快！》刚撕完第 ${this.levelIndex + 1} 关「${this.theme.title}」，超解压根本停不下来！`
       : '超解压撕胶带小游戏《撕个痛快！》，强迫症玩到停不下来！';
     return {
       title,
@@ -1238,7 +1238,7 @@ Page({
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
 
-    const isDark = this.theme.cardBg === '#1e293b';
+    const isDark = !!(this.theme.isDark || this.theme.cardBg === '#1e293b');
     ctx.fillStyle = isDark ? '#f8fafc' : '#3a2f26';
     ctx.font = 'bold 16px sans-serif';
     ctx.textAlign = 'center';

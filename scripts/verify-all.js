@@ -82,10 +82,10 @@ for (const rel of androidFiles) {
 }
 console.log(`[verify] Android project structure PASS (${androidFiles.length} files)`);
 
-// 4. 关卡生成器颜色守恒 & 开局可玩性校验（同时测 web 与 wechat 两份模块）
+// 4. 关卡生成器颜色守恒 & 开局可玩性校验（覆盖全部 16 个生活主题关 + 4 个无限模式进阶关）
 for (const modPath of ['web/levels.js', 'wechat-miniprogram/utils/levels.js']) {
   const PL = require(path.join(ROOT, modPath));
-  for (let lvl = 0; lvl < 8; lvl++) {
+  for (let lvl = 0; lvl < 20; lvl++) {
     const data = PL.buildLevel(lvl, 0);
     if (data.tapes.length !== data.spoolQueue.length * 3) {
       throw new Error(`${modPath} Level ${lvl + 1} count mismatch`);
@@ -96,4 +96,4 @@ for (const modPath of ['web/levels.js', 'wechat-miniprogram/utils/levels.js']) {
     }
   }
 }
-console.log('[verify] Level generator conservation & start-playability PASS (8 levels x 2 targets)');
+console.log('[verify] Level generator conservation & start-playability PASS (20 levels x 2 targets)');

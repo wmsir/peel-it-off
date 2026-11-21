@@ -142,7 +142,7 @@
   <view wx:if="{{levelDrawerVisible}}" class="modal-backdrop" bindtap="onToggleLevelDrawer">
     <view class="modal-card" catchtap="noop">
       <view class="modal-title">选择体验关卡</view>
-      <view class="jump-list">
+      <scroll-view scroll-y="true" class="jump-list">
         <view
           wx:for="{{levelChoices}}"
           wx:key="idx"
@@ -152,7 +152,7 @@
         >
           第 {{item.idx + 1}} 关 · {{item.title}} ({{item.count}}条)
         </view>
-      </view>
+      </scroll-view>
       <button class="btn-ghost" bindtap="onToggleLevelDrawer">关闭</button>
     </view>
   </view>

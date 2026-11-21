@@ -894,6 +894,9 @@ body.android-app .phone-shell {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .jump-btn {
@@ -918,6 +921,9 @@ body.android-app .phone-shell {
   flex-direction: column;
   gap: 8px;
   margin: 12px 0 14px;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .mobile-jump-item {
