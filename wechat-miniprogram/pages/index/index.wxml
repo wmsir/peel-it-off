@@ -57,7 +57,14 @@
         </block>
       </view>
     </view>
-    <view class="queue-pill">{{queueText}}</view>
+    <view class="queue-pill">
+      <block wx:if="{{nextPreview.length > 0}}">
+        <text>下一卷预告：</text>
+        <view wx:for="{{nextPreview}}" wx:key="k" class="next-dot" style="background: {{item.hex}};">{{item.mark}}</view>
+        <text class="queue-rem">（{{queueText}}）</text>
+      </block>
+      <text wx:else>{{queueText}}</text>
+    </view>
   </view>
 
   <!-- 中部：手指暂存槽（5格 + 1个广告扩展格） -->

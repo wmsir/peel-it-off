@@ -305,11 +305,32 @@ body.android-app .phone-shell {
 }
 
 .queue-pill {
-  margin-top: 3px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   text-align: center;
   font-size: 10px;
   font-weight: 700;
   color: var(--ink-muted);
+}
+
+.next-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 900;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+
+.queue-rem {
+  opacity: 0.85;
 }
 
 .tray-section {

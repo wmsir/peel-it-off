@@ -24,6 +24,7 @@ Page({
     soundOn: true,
     spoolsView: [],
     queueText: '待进场卷芯：2 卷',
+    nextPreview: [],
     trayView: [],
     trayDanger: false,
     trayTipText: '颜色未匹配将暂存于此，满格即卡死',
@@ -400,8 +401,12 @@ Page({
       }
     }
 
+    const nextPreview = this.spoolQueue.slice(0, 2).map((c, idx) => {
+      const m = getColorMeta(c);
+      return { k: idx, hex: m.hex, mark: m.mark };
+    });
     const queueText = this.spoolQueue.length > 0
-      ? `待进场卷芯：${this.spoolQueue.length} 卷`
+      ? `共剩 ${this.spoolQueue.length} 卷`
       : '最后几卷了，冲刺撕光它！';
 
     this.setData(Object.assign({
@@ -410,6 +415,7 @@ Page({
       remainCount,
       spoolsView,
       queueText,
+      nextPreview,
       trayView,
       trayDanger,
       trayTipText: trayDanger ? '⚠️ 仅剩 1 格！小心缠成死结！' : '颜色未匹配将暂存于此，满格即卡死',

@@ -471,10 +471,19 @@
         this.spoolRowEl.appendChild(div);
       }
 
-      this.queuePillEl.textContent =
-        this.spoolQueue.length > 0
-          ? `待进场卷芯：${this.spoolQueue.length} 卷`
-          : '最后几卷了，冲刺撕光它！';
+      if (this.spoolQueue.length > 0) {
+        const previewHtml = this.spoolQueue
+          .slice(0, 2)
+          .map((cid) => {
+            const m = getColorMeta(cid);
+            return `<span class="next-dot" style="background:${m.hex}" title="${m.name}">${m.mark}</span>`;
+          })
+          .join('');
+        this.queuePillEl.innerHTML =
+          `<span>下一卷预告：</span>${previewHtml}<span class="queue-rem">（共剩 ${this.spoolQueue.length} 卷）</span>`;
+      } else {
+        this.queuePillEl.textContent = '最后几卷了，冲刺撕光它！';
+      }
     }
 
     _renderTrayDOM() {

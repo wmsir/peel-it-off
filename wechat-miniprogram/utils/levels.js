@@ -333,7 +333,7 @@
   }
 
   /**
-   * 🏹 单向箭头抽拉检测：沿 peelDir 前方 52px 通道是否有同层/上层胶带挡住
+   * 🏹 单向箭头抽拉检测：沿 peelDir 前方 52px 通道是否有更上层胶带挡住（严格 other.z > target.z，保证有向无环）
    */
   function getArrowBlockers(target, allTapes) {
     if (!target.arrow) return [];
@@ -351,7 +351,7 @@
       const other = allTapes[i];
       if (other.id === target.id) continue;
       if (other.state === 'done' || (other.state === 'peeling' && other.peelProgress > 0.42)) continue;
-      if (other.z >= target.z - 3 && obbIntersects(probe, other, 2.5)) {
+      if (other.z > target.z && obbIntersects(probe, other, 2.5)) {
         blockers.push(other);
       }
     }
@@ -415,50 +415,33 @@
         length = 126 + rng() * 14;
         width = 42;
       } else if (layoutType === 'weave') {
-        const band = i % 4;
-        const jitterX = (rng() - 0.5) * 30;
-        const jitterY = (rng() - 0.5) * 30;
-        if (band === 0) {
-          cx = cx0 + jitterX;
-          cy = cy0 + (-114 + ((i / 4) % 4) * 76) + (rng() - 0.5) * 14;
-          angle = ((rng() - 0.5) * 16) * (Math.PI / 180);
-          length = 200 + rng() * 38;
-        } else if (band === 1) {
-          cx = cx0 + (-88 + ((i / 4) % 4) * 58) + (rng() - 0.5) * 14;
-          cy = cy0 + jitterY;
-          angle = (90 + (rng() - 0.5) * 16) * (Math.PI / 180);
-          length = 198 + rng() * 36;
-        } else if (band === 2) {
-          cx = cx0 + (rng() * 2 - 1) * 105;
-          cy = cy0 + (rng() * 2 - 1) * 126;
-          angle = (36 + (rng() - 0.5) * 18) * (Math.PI / 180);
-          length = 195 + rng() * 38;
-        } else {
-          cx = cx0 + (rng() * 2 - 1) * 105;
-          cy = cy0 + (rng() * 2 - 1) * 126;
-          angle = (-36 + (rng() - 0.5) * 18) * (Math.PI / 180);
-          length = 195 + rng() * 38;
-        }
-        width = 42;
+        const zone = i % 6;
+        const zx = [-74, 74, -72, 72, 0, 0][zone];
+        const zy = [-116, -116, 116, 116, -36, 40][zone];
+        cx = cx0 + zx + (rng() - 0.5) * 42;
+        cy = cy0 + zy + (rng() - 0.5) * 44;
+        const baseDeg = [0, 88, -32, 32, 12, -82][i % 6];
+        angle = (baseDeg + (rng() - 0.5) * 20) * (Math.PI / 180);
+        length = 122 + rng() * 30;
+        width = 37;
       } else if (layoutType === 'starburst') {
-        const ring = Math.floor(i / 6);
-        const spoke = (i % 6) * (Math.PI / 6) + ring * 0.23 + (rng() - 0.5) * 0.14;
-        const radius = (i % 3 === 0 ? 26 : 70) + (rng() - 0.5) * 28;
-        cx = cx0 + Math.cos(spoke) * radius;
-        cy = cy0 + Math.sin(spoke) * radius * 1.24;
-        angle = spoke + Math.PI * 0.5 + (rng() - 0.5) * 0.25;
-        length = 186 + rng() * 40;
-        width = 40;
+        const spoke = (i % 8) * (Math.PI / 4) + Math.floor(i / 8) * 0.28 + (rng() - 0.5) * 0.16;
+        const radius = (i % 4 === 0 ? 34 : (i % 2 === 0 ? 94 : 120)) + (rng() - 0.5) * 22;
+        cx = cx0 + Math.cos(spoke) * Math.min(106, radius * 0.88);
+        cy = cy0 + Math.sin(spoke) * Math.min(140, radius * 1.12);
+        angle = spoke + (i % 2 === 0 ? Math.PI * 0.5 : 0) + (rng() - 0.5) * 0.24;
+        length = 120 + rng() * 30;
+        width = 37;
       } else {
-        const phase = i % 5;
-        const spreadX = 94 - layerFrac * 16;
-        const spreadY = 128 - layerFrac * 20;
-        cx = cx0 + (rng() * 2 - 1) * spreadX;
-        cy = cy0 + (rng() * 2 - 1) * spreadY;
-        const baseAngles = [0, 90, 42, -42, 20];
-        angle = (baseAngles[phase] + (rng() - 0.5) * 22) * (Math.PI / 180);
-        length = 176 + rng() * 48;
-        width = 39;
+        const zone = i % 6;
+        const zx = [-76, 76, 0, -74, 74, 0][zone];
+        const zy = [-110, -110, -18, 110, 110, 46][zone];
+        cx = cx0 + zx + (rng() - 0.5) * 46;
+        cy = cy0 + zy + (rng() - 0.5) * 48;
+        const baseAngles = [0, 90, 38, -38, 18, -72];
+        angle = (baseAngles[i % 6] + (rng() - 0.5) * 22) * (Math.PI / 180);
+        length = 122 + rng() * 32;
+        width = 37;
       }
 
       const halfSpanX = Math.abs(Math.cos(angle)) * (length * 0.5) + Math.abs(Math.sin(angle)) * (width * 0.5);
@@ -530,36 +513,29 @@
       }
     }
 
-    const colorSeq = [];
-    for (let i = 0; i < spoolQueue.length; i++) {
-      colorSeq.push(spoolQueue[i], spoolQueue[i], spoolQueue[i]);
+    // 防止连续 3 卷同色，保持策略调度空间
+    if (palette.length >= 2) {
+      for (let i = 2; i < spoolQueue.length; i++) {
+        if (spoolQueue[i] === spoolQueue[i - 1] && spoolQueue[i] === spoolQueue[i - 2]) {
+          for (let k = i + 1; k < spoolQueue.length; k++) {
+            if (spoolQueue[k] !== spoolQueue[i]) {
+              const tmp = spoolQueue[i];
+              spoolQueue[i] = spoolQueue[k];
+              spoolQueue[k] = tmp;
+              break;
+            }
+          }
+        }
+      }
     }
 
     const diff = baseTheme.difficulty;
-    const swapPasses = Math.round(totalTapes * (0.35 + diff * 2.1));
-    for (let s = 0; s < swapPasses; s++) {
-      const idx = Math.floor(rng() * totalTapes);
-      const progress = idx / totalTapes;
-      const maxSpan = progress < 0.20
-        ? Math.max(2, Math.round(2 + diff * 5))
-        : Math.max(4, Math.round(5 + diff * 15));
-      const delta = Math.floor((rng() * 2 - 1) * maxSpan);
-      const j = Math.max(0, Math.min(totalTapes - 1, idx + delta));
-      const tmp = colorSeq[idx];
-      colorSeq[idx] = colorSeq[j];
-      colorSeq[j] = tmp;
-    }
-
     const tapes = generateTapeGeometries(totalTapes, baseTheme.layout, rng);
-    for (let k = 0; k < totalTapes; k++) {
-      const tape = tapes[totalTapes - 1 - k];
-      tape.color = colorSeq[k];
-    }
 
-    // 1. 🏹 单向箭头（第 2 关起）：严格沿中心向外，数学上保证不可能出现循环死锁
+    // 1. 🏹 单向箭头（第 2 关起）：严格沿中心向外，且与上方层严格保持 z-order 有向无环
     if (levelIndex >= 1) {
       for (let i = 0; i < tapes.length; i++) {
-        if (rng() < 0.32) {
+        if (rng() < 0.30) {
           const t = tapes[i];
           t.arrow = true;
           const dx = t.cx - LOGICAL_W * 0.5;
@@ -567,10 +543,9 @@
           t.peelDir = (Math.cos(t.angle) * dx + Math.sin(t.angle) * dy) < 0 ? -1 : 1;
         }
       }
-      // 保证开局至少有 3 条立即可撕胶带
       let openCount = tapes.filter((t) => isTapePeelable(t, tapes)).length;
-      if (openCount < 3) {
-        for (let i = tapes.length - 1; i >= 0 && openCount < 3; i--) {
+      if (openCount < 4) {
+        for (let i = tapes.length - 1; i >= 0 && openCount < 4; i--) {
           const t = tapes[i];
           if (t.arrow && getBlockingTapes(t, tapes).length === 0) {
             t.arrow = false;
@@ -578,27 +553,254 @@
           }
         }
       }
+      if (!tapes.some((t) => t.arrow)) {
+        const lowest = tapes[0];
+        lowest.arrow = true;
+        const dx = lowest.cx - LOGICAL_W * 0.5;
+        const dy = lowest.cy - LOGICAL_H * 0.5;
+        lowest.peelDir = (Math.cos(lowest.angle) * dx + Math.sin(lowest.angle) * dy) < 0 ? -1 : 1;
+      }
     }
 
-    // 2. ❓ 刮刮盲盒贴（第 3 关起）：仅压在下层的胶带可成为银色刮刮贴
-    if (levelIndex >= 2) {
-      const mysProb = Math.min(0.32, 0.16 + diff * 0.18);
-      for (let i = 0; i < tapes.length; i++) {
-        const t = tapes[i];
-        if (getBlockingTapes(t, tapes).length > 0 && rng() < mysProb) {
-          t.mystery = true;
-          t.revealed = false;
+    // 2. 🎯 构造式策略有解路径生成器（正演模拟真实双卷芯 + 5格暂存区 + 下一卷预告，数学保证 0 死结与 100% 颜色守恒）
+    const slotBudget = {};
+    for (let i = 0; i < palette.length; i++) slotBudget[palette[i].id] = 0;
+    for (let i = 0; i < spoolQueue.length; i++) {
+      slotBudget[spoolQueue[i]] = (slotBudget[spoolQueue[i]] || 0) + 3;
+    }
+
+    const simTray = {};
+    let simTrayTotal = 0;
+    let poppedCount = 0;
+    let nextQ = 0;
+    const simActive = [null, null];
+
+    function simSweepSlot(idx) {
+      while (simActive[idx] && simActive[idx].need <= 0) {
+        poppedCount++;
+        if (nextQ < spoolQueue.length) {
+          const nc = spoolQueue[nextQ++];
+          const inTray = simTray[nc] || 0;
+          const take = Math.min(3, inTray);
+          if (take > 0) {
+            simTray[nc] = inTray - take;
+            simTrayTotal -= take;
+          }
+          simActive[idx] = { color: nc, need: 3 - take };
+        } else {
+          simActive[idx] = null;
         }
       }
     }
 
-    // 3. ❄️ 冰封火漆锁（第 4 关起）：严禁放在最顶 10 层（k < 10），确保前几卷稳定解锁
+    for (let i = 0; i < 2; i++) {
+      if (nextQ < spoolQueue.length) {
+        simActive[i] = { color: spoolQueue[nextQ++], need: 3 };
+      }
+    }
+
+    for (let i = 0; i < tapes.length; i++) {
+      tapes[i].color = null;
+      tapes[i].state = 'idle';
+      tapes[i].poppedAtPeel = 0;
+      tapes[i].unlockStep = getBlockingTapes(tapes[i], tapes).length === 0 ? 0 : -1;
+      tapes[i].peelStep = 0;
+    }
+
+    const nT = tapes.length;
+    const gBlk = new Array(nT);
+    const gArr = new Array(nT);
+    const gBelow = new Array(nT);
+    for (let i = 0; i < nT; i++) gBelow[i] = [];
+    for (let i = 0; i < nT; i++) {
+      tapes[i]._idx = i;
+      const obs = getBlockingTapes(tapes[i], tapes).map((b) => tapes.indexOf(b));
+      const abs = tapes[i].arrow ? getArrowBlockers(tapes[i], tapes).map((b) => tapes.indexOf(b)) : [];
+      gBlk[i] = obs;
+      gArr[i] = abs;
+      tapes[i].unlockStep = obs.length === 0 ? 0 : -1;
+      for (let k = 0; k < obs.length; k++) gBelow[obs[k]].push(i);
+      for (let k = 0; k < abs.length; k++) {
+        if (gBelow[abs[k]].indexOf(i) === -1) gBelow[abs[k]].push(i);
+      }
+    }
+    function simHasBlk(idx) {
+      const a = gBlk[idx];
+      for (let k = 0; k < a.length; k++) if (tapes[a[k]].state === 'idle') return true;
+      return false;
+    }
+    function simCntAll(idx) {
+      let c = 0;
+      const a = gBlk[idx], b = gArr[idx];
+      for (let k = 0; k < a.length; k++) if (tapes[a[k]].state === 'idle') c++;
+      for (let k = 0; k < b.length; k++) if (tapes[b[k]].state === 'idle') c++;
+      return c;
+    }
+    function simPeelable(t) {
+      return t.state === 'idle' && simCntAll(t._idx) === 0;
+    }
+    function countUnlockPotential(tape) {
+      let directUnlock = 0, partialBlock = 0;
+      const bl = gBelow[tape._idx];
+      for (let k = 0; k < bl.length; k++) {
+        const u = tapes[bl[k]];
+        if (u.state !== 'idle') continue;
+        const tot = simCntAll(u._idx);
+        if (tot === 1) directUnlock++;
+        else if (tot > 1) partialBlock++;
+      }
+      return { directUnlock, partialBlock };
+    }
+
+    const maxSimTray = levelIndex === 0 ? 1 : 2;
+    const desiredTraps = levelIndex === 0 ? 0 : 2;
+    let pendingUnlockedIds = [];
+    const deferredIds = [];
+
+    for (let step = 0; step < totalTapes; step++) {
+      const allPeelables = tapes.filter(simPeelable);
+      if (!allPeelables.length) throw new Error('Constructive level solver encountered blocked state at step ' + step);
+
+      if (desiredTraps > 0 && step < totalTapes * 0.72) {
+        for (let di = deferredIds.length - 1; di >= 0; di--) {
+          const dt = tapes[deferredIds[di]];
+          if (!dt || dt.state !== 'idle') deferredIds.splice(di, 1);
+        }
+        if (deferredIds.length < desiredTraps && allPeelables.length - deferredIds.length > 2) {
+          const cands = allPeelables
+            .filter((t) => deferredIds.indexOf(t._idx) === -1 && pendingUnlockedIds.indexOf(t._idx) === -1)
+            .sort((a, b) => {
+              const pa = countUnlockPotential(a), pb = countUnlockPotential(b);
+              return (pa.directUnlock * 3 + pa.partialBlock) - (pb.directUnlock * 3 + pb.partialBlock);
+            });
+          while (cands.length > 0 && deferredIds.length < desiredTraps && allPeelables.length - deferredIds.length > 2) {
+            deferredIds.push(cands.shift()._idx);
+          }
+        }
+      }
+      const nonDef = step < totalTapes * 0.72 ? allPeelables.filter((t) => deferredIds.indexOf(t._idx) === -1) : allPeelables;
+      const peelables = nonDef.length > 0 ? nonDef : allPeelables;
+
+      const activeOpts = [];
+      for (let i = 0; i < simActive.length; i++) {
+        const sp = simActive[i];
+        if (sp && sp.need >= 1 && slotBudget[sp.color] > 0) activeOpts.push({ idx: i, sp });
+      }
+      const decoyColors = [];
+      for (let i = 0; i < palette.length; i++) {
+        const cid = palette[i].id;
+        if (slotBudget[cid] <= 0) continue;
+        if (!activeOpts.some((o) => o.sp.color === cid)) decoyColors.push(cid);
+      }
+      const blockersInP = [];
+      for (let i = 0; i < peelables.length; i++) {
+        const pot = countUnlockPotential(peelables[i]);
+        if (pot.directUnlock > 0 || pot.partialBlock > 0) {
+          blockersInP.push({ tape: peelables[i], directUnlock: pot.directUnlock, partialBlock: pot.partialBlock });
+        }
+      }
+      const unlockedCandidates = peelables.filter((t) => pendingUnlockedIds.indexOf(t._idx) !== -1);
+
+      let chosenColor = null, chosenSpIdx = -1, chosenTape = null;
+      const targetTrayPressure = levelIndex === 0 ? 0 : 2;
+      const canDetour = levelIndex >= 1 && simTrayTotal < maxSimTray && decoyColors.length > 0 && blockersInP.length > 0;
+      let detourChance = 0;
+      if (canDetour) {
+        if (simTrayTotal < targetTrayPressure) detourChance = 0.62 + diff * 0.16;
+        else if (activeOpts.some((o) => o.sp.need === 1)) detourChance = 0.45 + diff * 0.18;
+      }
+      if (unlockedCandidates.length >= 1 && simTrayTotal >= 1 && rng() < 0.72) detourChance = 0;
+
+      if (canDetour && rng() < detourChance) {
+        const next1 = nextQ < spoolQueue.length ? spoolQueue[nextQ] : null;
+        const next2 = nextQ + 1 < spoolQueue.length ? spoolQueue[nextQ + 1] : null;
+        if (next1 && decoyColors.indexOf(next1) !== -1 && rng() < 0.82) chosenColor = next1;
+        else if (next2 && decoyColors.indexOf(next2) !== -1 && rng() < 0.78) chosenColor = next2;
+        else chosenColor = decoyColors[Math.floor(rng() * decoyColors.length)];
+
+        blockersInP.sort((a, b) => (b.directUnlock * 3 + b.partialBlock) - (a.directUnlock * 3 + a.partialBlock));
+        const topK = Math.min(blockersInP.length, blockersInP[0].directUnlock > 0 ? 2 : 3);
+        chosenTape = blockersInP[Math.floor(rng() * topK)].tape;
+      } else {
+        activeOpts.sort((a, b) => a.sp.need - b.sp.need);
+        const pickOpt = (activeOpts.length >= 2 && rng() < 0.22) ? activeOpts[1] : activeOpts[0];
+        chosenColor = pickOpt.sp.color;
+        chosenSpIdx = pickOpt.idx;
+        if (unlockedCandidates.length > 0 && (levelIndex >= 2 ? rng() < 0.88 : rng() < 0.55)) {
+          chosenTape = unlockedCandidates[Math.floor(rng() * unlockedCandidates.length)];
+        } else if (blockersInP.length > 0) {
+          chosenTape = blockersInP[Math.floor(rng() * blockersInP.length)].tape;
+        } else {
+          peelables.sort((a, b) => b.z - a.z);
+          chosenTape = peelables[0];
+        }
+      }
+
+      chosenTape.color = chosenColor;
+      chosenTape.state = 'done';
+      chosenTape.poppedAtPeel = poppedCount;
+      chosenTape.peelStep = step;
+      slotBudget[chosenColor] -= 1;
+
+      if (chosenSpIdx !== -1) {
+        simActive[chosenSpIdx].need -= 1;
+        simSweepSlot(chosenSpIdx);
+      } else {
+        simTray[chosenColor] = (simTray[chosenColor] || 0) + 1;
+        simTrayTotal += 1;
+      }
+
+      const nextPending = pendingUnlockedIds.filter((id) => id !== chosenTape._idx);
+      const bl = gBelow[chosenTape._idx];
+      for (let k = 0; k < bl.length; k++) {
+        const u = tapes[bl[k]];
+        if (u.state !== 'idle') continue;
+        if (u.unlockStep === -1 && !simHasBlk(u._idx)) u.unlockStep = step + 1;
+        if (chosenSpIdx === -1 && nextPending.indexOf(u._idx) === -1 && simPeelable(u) && u.unlockStep === step + 1) {
+          nextPending.push(u._idx);
+        }
+      }
+      pendingUnlockedIds = nextPending;
+    }
+    for (let i = 0; i < nT; i++) delete tapes[i]._idx;
+
+    for (let i = 0; i < tapes.length; i++) {
+      tapes[i].state = 'idle';
+    }
+
+    // 3. ❓ 刮刮盲盒贴（第 3 关起）：仅压在下层的胶带可成为银色刮刮贴，严格封顶以免纯盲猜
+    if (levelIndex >= 2) {
+      const maxMystery = Math.min(4, 2 + Math.floor((levelIndex - 2) * 0.2));
+      const mysPool = [];
+      for (let i = 0; i < tapes.length; i++) {
+        if (getBlockingTapes(tapes[i], tapes).length > 0) {
+          mysPool.push(tapes[i]);
+        }
+      }
+      for (let i = mysPool.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        const tmp = mysPool[i];
+        mysPool[i] = mysPool[j];
+        mysPool[j] = tmp;
+      }
+      for (let i = 0; i < Math.min(maxMystery, mysPool.length); i++) {
+        mysPool[i].mystery = true;
+        mysPool[i].revealed = false;
+      }
+    }
+
+    // 4. ❄️ 冰封火漆锁（第 4 关起）：只放在构造路径已收满 >= 2 卷且初始被压住的胶带上，确保必定可融解且不堵开局
     if (levelIndex >= 3) {
-      const maxWax = Math.min(5, 2 + Math.floor((levelIndex - 2) * 0.5));
-      const waxPool = [];
-      for (let k = 10; k < totalTapes; k++) {
-        const t = tapes[totalTapes - 1 - k];
-        if (!t.mystery) waxPool.push(t);
+      const maxWax = Math.min(5, 2 + Math.floor((levelIndex - 2) * 0.4));
+      let waxPool = [];
+      for (let i = 0; i < tapes.length; i++) {
+        const t = tapes[i];
+        if (t.poppedAtPeel >= 2 && !t.mystery && getBlockingTapes(t, tapes).length > 0) {
+          waxPool.push(t);
+        }
+      }
+      if (waxPool.length === 0) {
+        waxPool = tapes.filter((t) => !t.mystery && getBlockingTapes(t, tapes).length > 0);
       }
       for (let i = waxPool.length - 1; i > 0; i--) {
         const j = Math.floor(rng() * (i + 1));
@@ -607,19 +809,27 @@
         waxPool[j] = tmp;
       }
       for (let i = 0; i < Math.min(maxWax, waxPool.length); i++) {
-        waxPool[i].wax = (levelIndex >= 5 && rng() < 0.4) ? 2 : 1;
+        const wt = waxPool[i];
+        wt.wax = (wt.poppedAtPeel >= 4 && levelIndex >= 4 && rng() < 0.45) ? 2 : 1;
       }
     }
 
-    // 4. 💣 倒计时引信贴（第 5 关起）：放在被压住的非冰封/非盲盒胶带上，露头后开始倒数
+    // 5. 💣 倒计时引信贴（第 5 关起）：放在被压住的非冰封/非盲盒胶带上，优先选取露头后 4 步内即顺手拆弹的位置
     if (levelIndex >= 4) {
-      const maxBomb = Math.min(3, 1 + Math.floor((levelIndex - 3) * 0.35));
-      const bombPool = [];
+      const maxBomb = Math.min(2, 1 + Math.floor((levelIndex - 3) * 0.45));
+      const allBuried = [];
       for (let i = 0; i < tapes.length; i++) {
         const t = tapes[i];
         if (getBlockingTapes(t, tapes).length > 0 && t.wax === 0 && !t.mystery) {
-          bombPool.push(t);
+          allBuried.push(t);
         }
+      }
+      let bombPool = allBuried.filter((t) => !t.arrow && (t.peelStep - t.unlockStep) <= 4);
+      if (bombPool.length < maxBomb) {
+        bombPool = allBuried.filter((t) => (t.peelStep - t.unlockStep) <= 6);
+      }
+      if (bombPool.length < maxBomb) {
+        bombPool = allBuried;
       }
       for (let i = bombPool.length - 1; i > 0; i--) {
         const j = Math.floor(rng() * (i + 1));
@@ -627,11 +837,16 @@
         bombPool[i] = bombPool[j];
         bombPool[j] = tmp;
       }
-      const fuseSteps = levelIndex >= 8 ? 6 : 7;
       for (let i = 0; i < Math.min(maxBomb, bombPool.length); i++) {
-        bombPool[i].bomb = fuseSteps;
+        bombPool[i].bomb = 7;
         bombPool[i].bombArmed = false;
       }
+    }
+
+    for (let i = 0; i < tapes.length; i++) {
+      delete tapes[i].poppedAtPeel;
+      delete tapes[i].unlockStep;
+      delete tapes[i].peelStep;
     }
 
     const counts = {};
