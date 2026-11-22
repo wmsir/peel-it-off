@@ -305,6 +305,41 @@
   border-color: #ef476f;
 }
 
+.stage-wrap.fever-active {
+  border-color: #f59e0b;
+  box-shadow: inset 0 0 0 4rpx rgba(245, 158, 11, 0.48);
+}
+
+.fever-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 10rpx;
+  background: rgba(0, 0, 0, 0.06);
+  z-index: 6;
+  pointer-events: none;
+}
+
+.fever-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #ef476f);
+}
+
+.fever-label {
+  position: absolute;
+  top: 16rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  color: #ffffff;
+  font-size: 22rpx;
+  font-weight: 800;
+  padding: 6rpx 22rpx;
+  border-radius: 999rpx;
+  white-space: nowrap;
+}
+
 .board-canvas {
   width: 100%;
   height: 100%;

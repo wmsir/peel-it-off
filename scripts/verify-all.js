@@ -82,7 +82,7 @@ for (const rel of androidFiles) {
 }
 console.log(`[verify] Android project structure PASS (${androidFiles.length} files)`);
 
-// 4. 关卡生成器颜色守恒 & 开局可玩性校验（覆盖全部 16 个生活主题关 + 4 个无限模式进阶关）
+// 4. 关卡生成器颜色守恒、开局可撕性、新机制分布 & 盲点难度校验（覆盖全部 16 个生活主题关 + 4 个无限模式进阶关）
 for (const modPath of ['web/levels.js', 'wechat-miniprogram/utils/levels.js']) {
   const PL = require(path.join(ROOT, modPath));
   for (let lvl = 0; lvl < 20; lvl++) {
@@ -90,10 +90,117 @@ for (const modPath of ['web/levels.js', 'wechat-miniprogram/utils/levels.js']) {
     if (data.tapes.length !== data.spoolQueue.length * 3) {
       throw new Error(`${modPath} Level ${lvl + 1} count mismatch`);
     }
-    const freeStart = data.tapes.filter((t) => PL.getBlockingTapes(t, data.tapes).length === 0);
-    if (freeStart.length < 2) {
-      throw new Error(`${modPath} Level ${lvl + 1} has too few starting free tapes: ${freeStart.length}`);
+    const freePeelableStart = data.tapes.filter((t) => PL.isTapePeelable(t, data.tapes));
+    if (freePeelableStart.length < 3) {
+      throw new Error(`${modPath} Level ${lvl + 1} has too few peelable starting tapes: ${freePeelableStart.length}`);
+    }
+    if (lvl >= 1 && !data.tapes.some((t) => t.arrow)) {
+      throw new Error(`${modPath} Level ${lvl + 1} missing arrow mechanic`);
+    }
+    if (lvl >= 2 && !data.tapes.some((t) => t.mystery)) {
+      throw new Error(`${modPath} Level ${lvl + 1} missing mystery mechanic`);
+    }
+    if (lvl >= 3 && !data.tapes.some((t) => t.wax > 0)) {
+      throw new Error(`${modPath} Level ${lvl + 1} missing wax mechanic`);
+    }
+    if (lvl >= 4 && !data.tapes.some((t) => t.bomb > 0)) {
+      throw new Error(`${modPath} Level ${lvl + 1} missing bomb mechanic`);
     }
   }
 }
-console.log('[verify] Level generator conservation & start-playability PASS (20 levels x 2 targets)');
+
+// 5. 第 5 关（撸猫粘毛贴）50 次盲点随机模拟，确认难度有挑战（盲点胜率 < 50%）
+{
+  const PL = require(path.join(ROOT, 'web/levels.js'));
+  let blindWins = 0;
+  for (let trial = 0; trial < 50; trial++) {
+    const data = PL.buildLevel(4, trial);
+    const tapes = data.tapes;
+    const queue = data.spoolQueue.slice();
+    const spools = [
+      { color: queue.shift(), filled: 0 },
+      { color: queue.shift(), filled: 0 }
+    ];
+    const tray = [];
+    let failed = false;
+    let seed = (trial + 1) * 9973;
+    const nextRand = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+
+    while (tapes.some((t) => t.state === 'idle')) {
+      for (let i = 0; i < tapes.length; i++) {
+        const t = tapes[i];
+        if (t.state === 'idle' && t.bomb > 0 && !t.bombArmed && PL.getBlockingTapes(t, tapes).length === 0 && t.wax <= 0) {
+          t.bombArmed = true;
+        }
+      }
+      const peelable = tapes.filter((t) => PL.isTapePeelable(t, tapes));
+      if (!peelable.length) {
+        failed = true;
+        break;
+      }
+      const pick = peelable[Math.floor(nextRand() * peelable.length)];
+      pick.state = 'done';
+      if (pick.bomb > 0) {
+        pick.bomb = 0;
+        pick.bombArmed = false;
+      }
+      let exploded = false;
+      for (let i = 0; i < tapes.length; i++) {
+        const other = tapes[i];
+        if (other.state === 'idle' && other.bomb > 0 && other.bombArmed) {
+          other.bomb -= 1;
+          if (other.bomb <= 0) exploded = true;
+        }
+      }
+      if (exploded) {
+        failed = true;
+        break;
+      }
+      const sp = spools.find((s) => s && s.color === pick.color && s.filled < 3);
+      if (sp) {
+        sp.filled++;
+        if (sp.filled === 3) {
+          sp.color = queue.length ? queue.shift() : null;
+          sp.filled = 0;
+          for (let i = 0; i < tapes.length; i++) {
+            if (tapes[i].state === 'idle' && tapes[i].wax > 0) tapes[i].wax--;
+          }
+          let swept = true;
+          while (swept) {
+            swept = false;
+            for (let ti = tray.length - 1; ti >= 0; ti--) {
+              const tsp = spools.find((s) => s && s.color === tray[ti] && s.filled < 3);
+              if (tsp) {
+                tray.splice(ti, 1);
+                tsp.filled++;
+                if (tsp.filled === 3) {
+                  tsp.color = queue.length ? queue.shift() : null;
+                  tsp.filled = 0;
+                  for (let i = 0; i < tapes.length; i++) {
+                    if (tapes[i].state === 'idle' && tapes[i].wax > 0) tapes[i].wax--;
+                  }
+                }
+                swept = true;
+              }
+            }
+          }
+        }
+      } else {
+        if (tray.length >= 5) {
+          failed = true;
+          break;
+        }
+        tray.push(pick.color);
+      }
+    }
+    if (!failed) blindWins++;
+  }
+  if (blindWins >= 25) {
+    throw new Error(`Level 5 blind-click win rate too easy: ${blindWins}/50`);
+  }
+  console.log(`[verify] Level 5 blind-click challenge PASS (blindWins: ${blindWins}/50 < 25)`);
+}
+console.log('[verify] Level generator conservation, mechanics & playability PASS (20 levels x 2 targets)');

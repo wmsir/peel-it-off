@@ -44,6 +44,10 @@
 
       <!-- 核心画布区：层叠胶带 & 终极保护膜 -->
       <section class="stage-wrap" id="stage-wrap">
+        <div class="fever-strip" id="fever-strip">
+          <div class="fever-fill" id="fever-fill"></div>
+          <span class="fever-label hidden" id="fever-label">🔥 狂暴手撕中！无视箭头与冰封！</span>
+        </div>
         <canvas id="board-canvas"></canvas>
         <div class="mode-banner hidden" id="cutter-banner">
           <span>✂️ 破障美工刀已就绪：点击<strong>任意</strong>被压住的胶带强行抽出！</span>
@@ -150,16 +154,17 @@
       <div class="dev-header">
         <span class="dev-badge">Web / Android 双端源</span>
         <h1>《撕个痛快！》</h1>
-        <p class="dev-subtitle">全民解压生活版 v1.0.1</p>
+        <p class="dev-subtitle">全民解压烧脑版 v1.1.0</p>
       </div>
 
       <div class="dev-card">
-        <h3>🎧 体验指南（建议打开声音）</h3>
+        <h3>🎧 玩法与机制（不再只是无脑点！）</h3>
         <ul class="dev-list">
-          <li><strong>点击最上层胶带</strong>（带微微翘角）：体验程序化合成“嘶啦”ASMR与卷边撕裂动画。</li>
-          <li><strong>点击被压住的胶带</strong>：震动晃动并白边高亮压住它的上层胶带。</li>
-          <li><strong>颜色匹配卷芯</strong>：飞入连击变调，收满 3 条爆裂打包并自动级联吸走暂存区同色胶带！</li>
-          <li><strong>撕光后别走</strong>：下滑撕开最后一张高光保护膜，揭晓日常解压彩蛋！</li>
+          <li><strong>🏹 单向箭头贴（L2起）</strong>：只能沿箭头方向抽离，前方有胶带挡路会顶撞回弹！</li>
+          <li><strong>❓ 银色刮刮盲盒（L3起）</strong>：压在下面看不出颜色，揭开上层后瞬间翻面揭晓！</li>
+          <li><strong>❄️ 冰封火漆锁（L4起）</strong>：冻住不能直接撕，<strong>收满任意 1 卷</strong>即可震碎 1 层冰封！</li>
+          <li><strong>💣 倒计时引信（L5起）</strong>：露头后每次操作倒数 1 步，归零前必须抢先撕掉拆弹！</li>
+          <li><strong>🔥 狂暴手撕 &amp; 顺向划撕</strong>：沿翘角方向滑动撕拉加速充能，满槽 6 秒无视箭头与冰封！</li>
         </ul>
       </div>
 

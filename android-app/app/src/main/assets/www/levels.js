@@ -26,9 +26,9 @@
   const LEVEL_THEMES = [
     {
       title: '拆快递盲箱',
-      spools: 4,
+      spools: 5,
       colors: 3,
-      difficulty: 0.08,
+      difficulty: 0.18,
       layout: 'parcel',
       cardBg: '#d8b482',
       cardAccent: '#b08652',
@@ -40,9 +40,9 @@
     },
     {
       title: '撕新手机膜',
-      spools: 6,
+      spools: 8,
       colors: 4,
-      difficulty: 0.24,
+      difficulty: 0.44,
       layout: 'weave',
       isDark: true,
       cardBg: '#1e293b',
@@ -55,9 +55,9 @@
     },
     {
       title: '清理冰箱',
-      spools: 8,
-      colors: 4,
-      difficulty: 0.32,
+      spools: 10,
+      colors: 5,
+      difficulty: 0.54,
       layout: 'weave',
       cardBg: '#e0f2fe',
       cardAccent: '#0284c7',
@@ -69,9 +69,9 @@
     },
     {
       title: '抽潮玩盲盒',
-      spools: 9,
+      spools: 12,
       colors: 5,
-      difficulty: 0.38,
+      difficulty: 0.62,
       layout: 'starburst',
       cardBg: '#fce7f3',
       cardAccent: '#db2777',
@@ -83,9 +83,9 @@
     },
     {
       title: '撸猫粘毛贴',
-      spools: 10,
-      colors: 5,
-      difficulty: 0.42,
+      spools: 14,
+      colors: 6,
+      difficulty: 0.68,
       layout: 'weave',
       cardBg: '#fef3c7',
       cardAccent: '#d97706',
@@ -97,9 +97,9 @@
     },
     {
       title: '撕减肥便签',
-      spools: 11,
-      colors: 5,
-      difficulty: 0.46,
+      spools: 15,
+      colors: 6,
+      difficulty: 0.70,
       layout: 'starburst',
       cardBg: '#dcfce7',
       cardAccent: '#16a34a',
@@ -111,9 +111,9 @@
     },
     {
       title: '撕摸鱼便签',
-      spools: 12,
-      colors: 5,
-      difficulty: 0.49,
+      spools: 16,
+      colors: 6,
+      difficulty: 0.72,
       layout: 'denseCross',
       cardBg: '#e2e8f0',
       cardAccent: '#475569',
@@ -125,9 +125,9 @@
     },
     {
       title: '撕掉账单焦虑',
-      spools: 13,
+      spools: 17,
       colors: 6,
-      difficulty: 0.52,
+      difficulty: 0.74,
       layout: 'weave',
       cardBg: '#fee2e2',
       cardAccent: '#ef4444',
@@ -139,9 +139,9 @@
     },
     {
       title: '清行李箱贴纸',
-      spools: 14,
+      spools: 18,
       colors: 6,
-      difficulty: 0.54,
+      difficulty: 0.76,
       layout: 'denseCross',
       cardBg: '#dbeafe',
       cardAccent: '#2563eb',
@@ -153,9 +153,9 @@
     },
     {
       title: '拆美妆礼盒',
-      spools: 15,
+      spools: 19,
       colors: 6,
-      difficulty: 0.56,
+      difficulty: 0.78,
       layout: 'starburst',
       cardBg: '#fae8ff',
       cardAccent: '#a21caf',
@@ -167,9 +167,9 @@
     },
     {
       title: '整理梳妆台',
-      spools: 16,
+      spools: 20,
       colors: 6,
-      difficulty: 0.58,
+      difficulty: 0.80,
       layout: 'weave',
       cardBg: '#ffe4e6',
       cardAccent: '#e11d48',
@@ -181,9 +181,9 @@
     },
     {
       title: '撕奶茶封口膜',
-      spools: 17,
+      spools: 21,
       colors: 6,
-      difficulty: 0.60,
+      difficulty: 0.81,
       layout: 'vault',
       cardBg: '#ffedd5',
       cardAccent: '#ea580c',
@@ -195,9 +195,9 @@
     },
     {
       title: '清理旧书桌',
-      spools: 18,
+      spools: 21,
       colors: 6,
-      difficulty: 0.62,
+      difficulty: 0.82,
       layout: 'denseCross',
       cardBg: '#ecfccb',
       cardAccent: '#65a30d',
@@ -209,9 +209,9 @@
     },
     {
       title: '撕手表新屏幕膜',
-      spools: 19,
+      spools: 22,
       colors: 6,
-      difficulty: 0.64,
+      difficulty: 0.83,
       layout: 'starburst',
       isDark: true,
       cardBg: '#0f172a',
@@ -224,9 +224,9 @@
     },
     {
       title: '拆追剧零食箱',
-      spools: 20,
+      spools: 22,
       colors: 6,
-      difficulty: 0.65,
+      difficulty: 0.84,
       layout: 'vault',
       cardBg: '#fef9c3',
       cardAccent: '#ca8a04',
@@ -238,9 +238,9 @@
     },
     {
       title: '解封好运存钱罐',
-      spools: 21,
+      spools: 23,
       colors: 6,
-      difficulty: 0.66,
+      difficulty: 0.85,
       layout: 'vault',
       cardBg: '#fef3c7',
       cardAccent: '#d97706',
@@ -332,6 +332,41 @@
     return blockers;
   }
 
+  /**
+   * 🏹 单向箭头抽拉检测：沿 peelDir 前方 52px 通道是否有同层/上层胶带挡住
+   */
+  function getArrowBlockers(target, allTapes) {
+    if (!target.arrow) return [];
+    const dirX = Math.cos(target.angle) * target.peelDir;
+    const dirY = Math.sin(target.angle) * target.peelDir;
+    const probe = {
+      cx: target.cx + dirX * (target.length * 0.5 + 26),
+      cy: target.cy + dirY * (target.length * 0.5 + 26),
+      length: 52,
+      width: target.width * 0.72,
+      angle: target.angle
+    };
+    const blockers = [];
+    for (let i = 0; i < allTapes.length; i++) {
+      const other = allTapes[i];
+      if (other.id === target.id) continue;
+      if (other.state === 'done' || (other.state === 'peeling' && other.peelProgress > 0.42)) continue;
+      if (other.z >= target.z - 3 && obbIntersects(probe, other, 2.5)) {
+        blockers.push(other);
+      }
+    }
+    return blockers;
+  }
+
+  function isTapePeelable(target, allTapes) {
+    return (
+      target.state === 'idle' &&
+      (target.wax || 0) <= 0 &&
+      getBlockingTapes(target, allTapes).length === 0 &&
+      getArrowBlockers(target, allTapes).length === 0
+    );
+  }
+
   function generateTapeGeometries(count, layoutType, rng) {
     const slots = [];
     const cx0 = LOGICAL_W * 0.5;
@@ -347,6 +382,9 @@
           { x:   0, y:    0, deg:  82, len: 236 },
           { x:   0, y:  -34, deg:  24, len: 226 },
           { x:   2, y:   34, deg: -24, len: 226 },
+          { x: -16, y:   -6, deg:  14, len: 210 },
+          { x:  18, y:   12, deg: -72, len: 204 },
+          { x:   0, y:  -68, deg:   6, len: 212 },
           { x: -46, y:  -58, deg: -40, len: 206 },
           { x:  48, y:   56, deg: -38, len: 206 },
           { x:  48, y:  -54, deg:  42, len: 206 },
@@ -442,7 +480,14 @@
         peelProgress: 0,
         shakeTime: 0,
         highlightTime: 0,
-        flipAnim: 0
+        flipAnim: 0,
+        bonkTime: 0,
+        arrow: false,
+        mystery: false,
+        revealed: true,
+        wax: 0,
+        bomb: 0,
+        bombArmed: false
       });
     }
 
@@ -453,9 +498,9 @@
     const cycleBase = LEVEL_THEMES[levelIndex % LEVEL_THEMES.length];
     const baseTheme = LEVEL_THEMES[levelIndex] || Object.assign({}, cycleBase, {
       title: cycleBase.title + '·进阶',
-      spools: 22,
+      spools: 23,
       colors: 6,
-      difficulty: 0.68,
+      difficulty: 0.86,
       layout: levelIndex % 2 === 0 ? 'starburst' : 'denseCross'
     });
 
@@ -491,13 +536,13 @@
     }
 
     const diff = baseTheme.difficulty;
-    const swapPasses = Math.round(totalTapes * (0.2 + diff * 1.1));
+    const swapPasses = Math.round(totalTapes * (0.35 + diff * 2.1));
     for (let s = 0; s < swapPasses; s++) {
       const idx = Math.floor(rng() * totalTapes);
       const progress = idx / totalTapes;
-      const maxSpan = progress < 0.45
-        ? Math.max(2, Math.round(2 + diff * 3.5))
-        : Math.max(3, Math.round(3 + diff * 9.5));
+      const maxSpan = progress < 0.20
+        ? Math.max(2, Math.round(2 + diff * 5))
+        : Math.max(4, Math.round(5 + diff * 15));
       const delta = Math.floor((rng() * 2 - 1) * maxSpan);
       const j = Math.max(0, Math.min(totalTapes - 1, idx + delta));
       const tmp = colorSeq[idx];
@@ -509,6 +554,84 @@
     for (let k = 0; k < totalTapes; k++) {
       const tape = tapes[totalTapes - 1 - k];
       tape.color = colorSeq[k];
+    }
+
+    // 1. 🏹 单向箭头（第 2 关起）：严格沿中心向外，数学上保证不可能出现循环死锁
+    if (levelIndex >= 1) {
+      for (let i = 0; i < tapes.length; i++) {
+        if (rng() < 0.32) {
+          const t = tapes[i];
+          t.arrow = true;
+          const dx = t.cx - LOGICAL_W * 0.5;
+          const dy = t.cy - LOGICAL_H * 0.5;
+          t.peelDir = (Math.cos(t.angle) * dx + Math.sin(t.angle) * dy) < 0 ? -1 : 1;
+        }
+      }
+      // 保证开局至少有 3 条立即可撕胶带
+      let openCount = tapes.filter((t) => isTapePeelable(t, tapes)).length;
+      if (openCount < 3) {
+        for (let i = tapes.length - 1; i >= 0 && openCount < 3; i--) {
+          const t = tapes[i];
+          if (t.arrow && getBlockingTapes(t, tapes).length === 0) {
+            t.arrow = false;
+            if (isTapePeelable(t, tapes)) openCount++;
+          }
+        }
+      }
+    }
+
+    // 2. ❓ 刮刮盲盒贴（第 3 关起）：仅压在下层的胶带可成为银色刮刮贴
+    if (levelIndex >= 2) {
+      const mysProb = Math.min(0.32, 0.16 + diff * 0.18);
+      for (let i = 0; i < tapes.length; i++) {
+        const t = tapes[i];
+        if (getBlockingTapes(t, tapes).length > 0 && rng() < mysProb) {
+          t.mystery = true;
+          t.revealed = false;
+        }
+      }
+    }
+
+    // 3. ❄️ 冰封火漆锁（第 4 关起）：严禁放在最顶 10 层（k < 10），确保前几卷稳定解锁
+    if (levelIndex >= 3) {
+      const maxWax = Math.min(5, 2 + Math.floor((levelIndex - 2) * 0.5));
+      const waxPool = [];
+      for (let k = 10; k < totalTapes; k++) {
+        const t = tapes[totalTapes - 1 - k];
+        if (!t.mystery) waxPool.push(t);
+      }
+      for (let i = waxPool.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        const tmp = waxPool[i];
+        waxPool[i] = waxPool[j];
+        waxPool[j] = tmp;
+      }
+      for (let i = 0; i < Math.min(maxWax, waxPool.length); i++) {
+        waxPool[i].wax = (levelIndex >= 5 && rng() < 0.4) ? 2 : 1;
+      }
+    }
+
+    // 4. 💣 倒计时引信贴（第 5 关起）：放在被压住的非冰封/非盲盒胶带上，露头后开始倒数
+    if (levelIndex >= 4) {
+      const maxBomb = Math.min(3, 1 + Math.floor((levelIndex - 3) * 0.35));
+      const bombPool = [];
+      for (let i = 0; i < tapes.length; i++) {
+        const t = tapes[i];
+        if (getBlockingTapes(t, tapes).length > 0 && t.wax === 0 && !t.mystery) {
+          bombPool.push(t);
+        }
+      }
+      for (let i = bombPool.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        const tmp = bombPool[i];
+        bombPool[i] = bombPool[j];
+        bombPool[j] = tmp;
+      }
+      const fuseSteps = levelIndex >= 8 ? 6 : 7;
+      for (let i = 0; i < Math.min(maxBomb, bombPool.length); i++) {
+        bombPool[i].bomb = fuseSteps;
+        bombPool[i].bombArmed = false;
+      }
     }
 
     const counts = {};
@@ -543,6 +666,8 @@
     obbIntersects,
     pointInTape,
     getBlockingTapes,
+    getArrowBlockers,
+    isTapePeelable,
     buildLevel,
     getColorMeta
   };

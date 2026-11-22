@@ -88,7 +88,11 @@
   </view>
 
   <!-- 核心 Canvas 2D 舞台 -->
-  <view class="stage-wrap {{cutterMode ? 'cutter-active' : ''}}">
+  <view class="stage-wrap {{cutterMode ? 'cutter-active' : ''}} {{feverActive ? 'fever-active' : ''}}">
+    <view class="fever-strip">
+      <view class="fever-fill" style="width: {{feverPct}}%;"></view>
+      <view wx:if="{{feverActive}}" class="fever-label">🔥 狂暴手撕中！无视箭头与冰封！</view>
+    </view>
     <canvas
       type="2d"
       id="board-canvas"

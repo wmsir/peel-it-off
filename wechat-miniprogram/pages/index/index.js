@@ -8,6 +8,8 @@ const {
   LEVEL_THEMES,
   pointInTape,
   getBlockingTapes,
+  getArrowBlockers,
+  isTapePeelable,
   buildLevel,
   getColorMeta
 } = PeelLevels;
@@ -26,6 +28,8 @@ Page({
     trayDanger: false,
     trayTipText: '颜色未匹配将暂存于此，满格即卡死',
     cutterMode: false,
+    feverActive: false,
+    feverPct: 0,
     showFilmHint: false,
     toastMsg: '',
     propsView: { cutter: 1, shuffle: 1, magnet: 1 },
@@ -85,6 +89,16 @@ Page({
     this.filmMoved = false;
     this.filmLastY = 0;
     this.filmSnapping = false;
+
+    this.feverCharge = 0;
+    this.feverTime = 0;
+    this._lastFeverPct = 0;
+    this._lastFeverActive = false;
+    this.explodedTape = null;
+    this.touchIsDown = false;
+    this.touchConsumedTap = false;
+    this.swipeLastLx = 0;
+    this.swipeLastLy = 0;
 
     this.ribbons = [];
     this.particles = [];
@@ -267,6 +281,13 @@ Page({
     this.filmProgress = 0;
     this.filmDragging = false;
     this.filmSnapping = false;
+    this.feverCharge = 0;
+    this.feverTime = 0;
+    this._lastFeverPct = 0;
+    this._lastFeverActive = false;
+    this.explodedTape = null;
+    this.touchIsDown = false;
+    this.touchConsumedTap = false;
 
     this.ribbons = [];
     this.particles = [];
@@ -279,10 +300,22 @@ Page({
 
     this._syncUI({
       showFilmHint: false,
+      feverActive: false,
+      feverPct: 0,
       'failModal.visible': false,
       'winModal.visible': false,
       levelDrawerVisible: false
     });
+  },
+
+  _syncFeverUI() {
+    const active = this.feverTime > 0;
+    const pct = Math.round(active ? Math.min(100, (this.feverTime / 6) * 100) : Math.min(100, this.feverCharge));
+    if (active !== this._lastFeverActive || Math.abs(pct - this._lastFeverPct) >= 2 || pct === 0) {
+      this._lastFeverActive = active;
+      this._lastFeverPct = pct;
+      this.setData({ feverActive: active, feverPct: pct });
+    }
   },
 
   _spawnSpoolAt(slotIdx) {
@@ -564,8 +597,8 @@ Page({
   _executeShuffle(idleTapes) {
     this.audio.playShuffle();
     const pool = idleTapes.map((t) => t.color);
-    const freeTapes = idleTapes.filter((t) => getBlockingTapes(t, this.tapes).length === 0);
-    const buriedTapes = idleTapes.filter((t) => getBlockingTapes(t, this.tapes).length > 0);
+    const freeTapes = idleTapes.filter((t) => isTapePeelable(t, this.tapes));
+    const buriedTapes = idleTapes.filter((t) => !isTapePeelable(t, this.tapes));
 
     const wanted = [];
     for (let i = 0; i < this.unlockedSpools; i++) {
@@ -669,6 +702,18 @@ Page({
     this.phase = 'playing';
     this.setData({ 'failModal.visible': false });
 
+    if (this.explodedTape) {
+      this.explodedTape.bomb = 0;
+      this.explodedTape.bombArmed = false;
+      this.explodedTape = null;
+    }
+    for (let i = 0; i < this.tapes.length; i++) {
+      const t = this.tapes[i];
+      if (t.state === 'idle' && t.bomb > 0 && t.bomb <= 2) {
+        t.bomb = 3;
+      }
+    }
+
     const freq = {};
     let bestColor = null;
     let bestCount = 0;
@@ -770,19 +815,27 @@ Page({
 
     if (this.phase !== 'playing') return;
 
+    this.touchIsDown = true;
+    this.touchConsumedTap = false;
+    this.swipeLastLx = pos.x;
+    this.swipeLastLy = pos.y;
+
     // Pass 1：拇指优先吸附可撕的最顶层胶带（避免蹭到旁边被压住的胶带）
     let hit = null;
     for (let i = this.tapes.length - 1; i >= 0; i--) {
       const t = this.tapes[i];
       if (t.state !== 'idle') continue;
       if (!pointInTape(pos.x, pos.y, t, 10)) continue;
-      if (this.cutterMode || getBlockingTapes(t, this.tapes).length === 0) {
+      const canPeel = (this.cutterMode || this.feverTime > 0)
+        ? (this.cutterMode || getBlockingTapes(t, this.tapes).length === 0)
+        : isTapePeelable(t, this.tapes);
+      if (canPeel) {
         hit = t;
         break;
       }
     }
 
-    // Pass 2：若没点到可撕胶带，再检测是否点到了被压住的胶带并给出清晰指引
+    // Pass 2：若没点到可撕胶带，再检测是否点到了被压住/锁定/阻挡的胶带并给出清晰指引
     if (!hit) {
       for (let i = this.tapes.length - 1; i >= 0; i--) {
         const t = this.tapes[i];
@@ -794,16 +847,42 @@ Page({
       }
     }
     if (!hit) return;
+    this.touchConsumedTap = true;
+    this._tryPeelTape(hit, false);
+  },
+
+  _tryPeelTape(hit, isSwipe) {
+    if (!hit || hit.state !== 'idle' || this.phase !== 'playing') return false;
 
     const blockers = getBlockingTapes(hit, this.tapes);
-    const isBlocked = blockers.length > 0;
-
-    if (isBlocked && !this.cutterMode) {
+    if (blockers.length > 0 && !this.cutterMode) {
       hit.shakeTime = 0.28;
       blockers.forEach((b) => { b.highlightTime = 0.55; });
       this.audio.playBlocked();
       this.showToast('👆 被压住了！先撕上面发亮翘角的胶带');
-      return;
+      return false;
+    }
+
+    if (hit.wax > 0 && !this.cutterMode) {
+      if (this.feverTime > 0) {
+        hit.wax = 0;
+        this._spawnSparks(hit.cx, hit.cy, '#67e8f9', 12);
+      } else {
+        hit.shakeTime = 0.28;
+        this.audio.playBlocked();
+        this.showToast('❄️ 冰封锁死！收满任意 1 卷自动震碎冰封');
+        return false;
+      }
+    }
+
+    const arrowBlockers = getArrowBlockers(hit, this.tapes);
+    if (arrowBlockers.length > 0 && !this.cutterMode && this.feverTime <= 0) {
+      hit.shakeTime = 0.30;
+      hit.bonkTime = 0.22;
+      arrowBlockers.forEach((b) => { b.highlightTime = 0.55; });
+      this.audio.playBlocked();
+      this.showToast('🏹 抽拉方向被挡住了！先清掉前方发亮的胶带');
+      return false;
     }
 
     let spoolSlotIdx = -1;
@@ -827,7 +906,7 @@ Page({
         this.audio.playBlocked();
         this.showToast('暂存区已满！请撕匹配顶部颜色的胶带');
         this._checkWinOrFail();
-        return;
+        return false;
       }
     }
 
@@ -839,6 +918,21 @@ Page({
       this._spawnSparks(hit.cx, hit.cy, '#fde047', 14);
     } else {
       this.audio.playTapePeel(hit.length / 170);
+    }
+
+    if (hit.bomb > 0) {
+      hit.bomb = 0;
+      hit.bombArmed = false;
+      this.combo += 1;
+      this._spawnSparks(hit.cx, hit.cy, '#fde047', 14);
+      this.popTexts.push({
+        x: hit.cx,
+        y: hit.cy - 10,
+        text: '✂️ 拆弹成功!',
+        color: '#d97706',
+        life: 0.9,
+        maxLife: 0.9
+      });
     }
 
     let destInfo;
@@ -854,25 +948,74 @@ Page({
 
     hit.state = 'peeling';
     hit.peelProgress = 0;
+    hit.peelIsSwipe = !!isSwipe;
     hit.destInfo = destInfo;
     this._syncUI();
+
+    let exploded = null;
+    for (let i = 0; i < this.tapes.length; i++) {
+      const other = this.tapes[i];
+      if (other.id === hit.id) continue;
+      if (other.state === 'idle' && other.bomb > 0 && other.bombArmed) {
+        other.bomb -= 1;
+        this._spawnSparks(other.cx, other.cy, '#ef4444', 5);
+        if (other.bomb <= 0 && !exploded) {
+          exploded = other;
+        }
+      }
+    }
+
+    if (exploded) {
+      this.phase = 'failed';
+      this.explodedTape = exploded;
+      this.audio.playFail();
+      this.setData({
+        failModal: {
+          visible: true,
+          desc: '💥 定时引信封条炸开缠死啦！看广告拆弹复活继续？'
+        }
+      });
+    }
+    return true;
   },
 
   onCanvasTouchMove(e) {
-    if (this.phase !== 'film' || !this.filmDragging || this.filmSnapping) return;
     const touch = e.touches && e.touches[0];
     if (!touch) return;
     const pos = this._touchToLogical(touch);
-    const dy = pos.y - this.filmLastY;
+
+    if (this.phase === 'playing' && this.touchIsDown && !this.touchConsumedTap) {
+      const dx = pos.x - this.swipeLastLx;
+      const dy = pos.y - this.swipeLastLy;
+      for (let i = this.tapes.length - 1; i >= 0; i--) {
+        const t = this.tapes[i];
+        if (t.state !== 'idle') continue;
+        if (!pointInTape(pos.x, pos.y, t, 12)) continue;
+        const dirX = Math.cos(t.angle) * t.peelDir;
+        const dirY = Math.sin(t.angle) * t.peelDir;
+        const dot = dx * dirX + dy * dirY;
+        if (dot >= 14) {
+          const peeled = this._tryPeelTape(t, true);
+          if (peeled) {
+            this.touchConsumedTap = true;
+            break;
+          }
+        }
+      }
+      return;
+    }
+
+    if (this.phase !== 'film' || !this.filmDragging || this.filmSnapping) return;
+    const dym = pos.y - this.filmLastY;
     this.filmLastY = pos.y;
 
-    if (dy > 1.5) {
+    if (dym > 1.5) {
       this.filmMoved = true;
     }
 
-    if (dy > 0.2) {
-      this.filmProgress = Math.min(1, this.filmProgress + dy / (LOGICAL_H * 0.72));
-      this.audio.updateFilmPeel(Math.min(1, dy / 14));
+    if (dym > 0.2) {
+      this.filmProgress = Math.min(1, this.filmProgress + dym / (LOGICAL_H * 0.72));
+      this.audio.updateFilmPeel(Math.min(1, dym / 14));
       if (Math.random() < 0.32) this.audio.vibrate('light');
       if (this.filmProgress >= 0.38) {
         this.filmDragging = false;
@@ -885,6 +1028,8 @@ Page({
   },
 
   onCanvasTouchEnd() {
+    this.touchIsDown = false;
+    this.touchConsumedTap = false;
     if (this.phase === 'film' && this.filmDragging) {
       this.filmDragging = false;
       this.audio.stopFilmPeel();
@@ -901,7 +1046,7 @@ Page({
 
   // ================= 丝带飞行 & 级联吸卷 =================
 
-  _launchRibbon(fromPos, toPos, color, destInfo, delay = 0) {
+  _launchRibbon(fromPos, toPos, color, destInfo, delay = 0, isSwipe = false) {
     const midX = (fromPos.x + toPos.x) * 0.5 + (Math.random() - 0.5) * 60;
     const midY = Math.min(fromPos.y, toPos.y) - 35;
     this.ribbons.push({
@@ -911,6 +1056,7 @@ Page({
       color,
       destInfo,
       delay,
+      isSwipe,
       t: 0,
       dur: 0.24
     });
@@ -925,6 +1071,16 @@ Page({
       this.combo++;
       if (this.combo > this.maxCombo) this.maxCombo = this.combo;
       this.audio.playMatch(this.combo);
+
+      if (this.feverTime <= 0) {
+        this.feverCharge = Math.min(100, this.feverCharge + (ribbon.isSwipe ? 34 : 22));
+        if (this.feverCharge >= 100) {
+          this.feverTime = 6.0;
+          this.feverCharge = 0;
+          this.showToast('🔥 狂暴手撕开启！6秒内无视冰封与箭头阻挡！');
+        }
+        this._syncFeverUI();
+      }
 
       this.bumpingSpoolIdx = dest.slotIdx;
       this._syncUI();
@@ -962,6 +1118,20 @@ Page({
           maxLife: 0.95
         });
 
+        let shatteredAny = false;
+        for (let k = 0; k < this.tapes.length; k++) {
+          const wt = this.tapes[k];
+          if (wt.state === 'idle' && wt.wax > 0) {
+            wt.wax = Math.max(0, wt.wax - 1);
+            wt.flipAnim = 0.6;
+            shatteredAny = true;
+            this._spawnSparks(wt.cx, wt.cy, '#67e8f9', 10);
+          }
+        }
+        if (shatteredAny) {
+          this.showToast('❄️ 打包震波击碎了冰封锁！');
+        }
+
         const finishedId = sp.id;
         const sIdx = dest.slotIdx;
         setTimeout(() => {
@@ -980,6 +1150,10 @@ Page({
       if (slotItem && slotItem.id === dest.chipId) {
         slotItem.state = 'seated';
         this.combo = 0;
+        if (this.feverTime <= 0) {
+          this.feverCharge = Math.max(0, this.feverCharge - 25);
+          this._syncFeverUI();
+        }
         this.audio.playTrayStick();
         this._syncUI();
         this._sweepTrayToSpools();
@@ -1143,14 +1317,32 @@ Page({
   },
 
   _update(dt) {
+    if (this.feverTime > 0 && this.phase === 'playing') {
+      this.feverTime = Math.max(0, this.feverTime - dt);
+      this._syncFeverUI();
+    }
+
     for (let i = 0; i < this.tapes.length; i++) {
       const t = this.tapes[i];
       if (t.shakeTime > 0) t.shakeTime = Math.max(0, t.shakeTime - dt);
+      if (t.bonkTime > 0) t.bonkTime = Math.max(0, t.bonkTime - dt);
       if (t.highlightTime > 0) t.highlightTime = Math.max(0, t.highlightTime - dt);
       if (t.flipAnim > 0) t.flipAnim = Math.max(0, t.flipAnim - dt * 3.2);
 
+      if (t.state === 'idle') {
+        const zBlocked = getBlockingTapes(t, this.tapes).length > 0;
+        if (t.mystery && !t.revealed && !zBlocked) {
+          t.revealed = true;
+          t.flipAnim = 1;
+          this._spawnSparks(t.cx, t.cy, '#e2e8f0', 10);
+        }
+        if (t.bomb > 0 && !t.bombArmed && !zBlocked && (t.wax || 0) <= 0) {
+          t.bombArmed = true;
+        }
+      }
+
       if (t.state === 'peeling') {
-        t.peelProgress += dt * 4.4;
+        t.peelProgress += dt * (t.peelIsSwipe ? 5.8 : 4.4);
         if (Math.random() < 0.5) {
           const p = Math.min(1, t.peelProgress);
           const localX = (t.length * 0.5 - p * t.length) * t.peelDir;
@@ -1171,7 +1363,7 @@ Page({
           const toPos = t.destInfo.type === 'spool'
             ? this._spoolTargetLogical(t.destInfo.slotIdx)
             : this._trayTargetLogical(t.destInfo.trayIdx);
-          this._launchRibbon(fromPos, toPos, t.color, t.destInfo, 0);
+          this._launchRibbon(fromPos, toPos, t.color, t.destInfo, 0, !!t.peelIsSwipe);
         }
       }
     }
@@ -1335,6 +1527,12 @@ Page({
     }
     if (tape.peelDir < 0) ctx.scale(-1, 1);
 
+    if (tape.bonkTime > 0) {
+      const bonkOffset = Math.sin((1 - tape.bonkTime / 0.22) * Math.PI) * 9;
+      ctx.translate(bonkOffset, 0);
+    }
+
+    const isMysteryHidden = !!(tape.mystery && !tape.revealed);
     const creaseX = L * 0.5 - p * L;
     const remainLen = creaseX - (-L * 0.5);
 
@@ -1345,7 +1543,15 @@ Page({
       ctx.shadowOffsetX = blocked ? 1 : 2;
       ctx.shadowOffsetY = blocked ? 2 : 5;
       this._traceTapeSegmentPath(ctx, -L * 0.5, -W * 0.5, remainLen, W, true, p === 0);
-      ctx.fillStyle = meta.hex;
+      if (isMysteryHidden) {
+        const foilGrad = ctx.createLinearGradient(-L * 0.5, -W * 0.5, L * 0.5, W * 0.5);
+        foilGrad.addColorStop(0, '#64748b');
+        foilGrad.addColorStop(0.5, '#cbd5e1');
+        foilGrad.addColorStop(1, '#475569');
+        ctx.fillStyle = foilGrad;
+      } else {
+        ctx.fillStyle = meta.hex;
+      }
       ctx.globalAlpha = blocked ? 0.88 : 0.94;
       ctx.fill();
       ctx.restore();
@@ -1362,12 +1568,71 @@ Page({
       ctx.fillStyle = grad;
       ctx.fillRect(-L * 0.5, -W * 0.5, remainLen, W);
 
+      if (tape.arrow && !isMysteryHidden && remainLen > 42) {
+        const shift = (timeSec * 36) % 18;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = 'round';
+        for (let ax = -L * 0.5 + 22 + shift; ax < -L * 0.5 + remainLen - 20; ax += 26) {
+          ctx.beginPath();
+          ctx.moveTo(ax - 5, -6);
+          ctx.lineTo(ax + 2, 0);
+          ctx.lineTo(ax - 5, 6);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
       if (remainLen > 34) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.68)';
-        ctx.font = 'bold 12px sans-serif';
+        if (isMysteryHidden) {
+          ctx.fillStyle = '#0f172a';
+          ctx.font = 'bold 15px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('❓', -L * 0.5 + remainLen * 0.5, 0.5);
+        } else if (!tape.wax && !tape.bomb) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
+          ctx.font = 'bold 12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(meta.mark, -L * 0.5 + remainLen * 0.5, 0.5);
+        }
+      }
+
+      if (tape.wax > 0 && remainLen > 44) {
+        const bx = -L * 0.5 + remainLen * 0.5;
+        ctx.save();
+        this._roundRectPath(ctx, bx - 24, -W * 0.5 + 4, 48, W - 8, 7);
+        ctx.fillStyle = 'rgba(186, 230, 253, 0.92)';
+        ctx.fill();
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#0369a1';
+        ctx.font = 'bold 13px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(meta.mark, -L * 0.5 + remainLen * 0.5, 0.5);
+        ctx.fillText(`❄️${tape.wax}`, bx, 0.5);
+        ctx.restore();
+      }
+
+      if (tape.bomb > 0 && remainLen > 44) {
+        const bx = -L * 0.5 + remainLen * 0.5;
+        const pulse = tape.bombArmed ? (0.65 + 0.35 * Math.sin(timeSec * 12)) : 0.7;
+        ctx.save();
+        this._roundRectPath(ctx, bx - 25, -W * 0.5 + 4, 50, W - 8, 8);
+        ctx.fillStyle = '#18181b';
+        ctx.fill();
+        ctx.strokeStyle = tape.bombArmed ? `rgba(239, 68, 68, ${pulse})` : '#a1a1aa';
+        ctx.lineWidth = tape.bombArmed ? 2.6 : 1.5;
+        ctx.stroke();
+        ctx.fillStyle = tape.bomb <= 2 && tape.bombArmed ? '#fca5a5' : '#fef08a';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`💣${tape.bomb}`, bx, 0.5);
+        ctx.restore();
       }
 
       if (blocked && !this.cutterMode) {
@@ -1386,7 +1651,7 @@ Page({
       ctx.restore();
     }
 
-    if (p === 0 && (!blocked || this.cutterMode)) {
+    if (p === 0 && !isMysteryHidden && (!blocked || this.cutterMode) && (tape.wax <= 0 || this.feverTime > 0)) {
       const curlSize = 15 + Math.sin(timeSec * 4.2 + tape.z * 0.8) * 1.8;
       ctx.save();
       ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
