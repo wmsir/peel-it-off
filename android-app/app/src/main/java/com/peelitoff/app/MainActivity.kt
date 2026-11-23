@@ -33,7 +33,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         // 与游戏纸板暖色背景一致的状态栏/导航栏配色（浅色底 + 深色图标）
-        val bgHex = Color.parseColor("#FAF6EE")
+        val bgHex = Color.parseColor("#FFFAF0")
         window.statusBarColor = bgHex
         window.navigationBarColor = bgHex
         val insetsController = WindowInsetsControllerCompat(window, window.decorView)
@@ -96,7 +96,7 @@ class MainActivity : AppCompatActivity() {
                     lastBackPressMs = now
                     Toast.makeText(
                         this@MainActivity,
-                        "再按一次退出《撕个痛快！》",
+                        "再按一次退出《捏个痛快！》",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -154,7 +154,7 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 val intent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, "撕个痛快！超解压小游戏")
+                    putExtra(Intent.EXTRA_SUBJECT, "捏个痛快！超解压捏泡泡纸游戏")
                     putExtra(Intent.EXTRA_TEXT, text)
                 }
                 startActivity(Intent.createChooser(intent, "分享战绩给好友"))

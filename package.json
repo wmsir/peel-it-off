@@ -1,7 +1,7 @@
 {
   "name": "peel-it-off",
-  "version": "1.2.0",
-  "description": "《撕个痛快！》解压休闲小游戏 — Android APP + 微信小程序 + H5 三端源码",
+  "version": "2.0.0",
+  "description": "《捏个痛快！》(Pop It Off!) 气压连锁捏泡泡消除游戏 — Android APP + 微信小程序 + H5 三端源码",
   "private": true,
   "scripts": {
     "sync": "node scripts/sync-assets.js",

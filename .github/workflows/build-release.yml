@@ -1,4 +1,4 @@
-name: Build Android APK & Package WeChat MiniProgram
+name: Build Pop It Off APK & Package WeChat MiniProgram
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
       - name: Package WeChat Mini-Program bundle (.zip)
         run: |
           mkdir -p dist
-          (cd wechat-miniprogram && zip -r ../dist/peel-it-off-wechat-miniprogram.zip .)
+          (cd wechat-miniprogram && zip -r ../dist/pop-it-off-wechat-miniprogram.zip .)
 
       - name: Setup JDK 17
         uses: actions/setup-java@v4
@@ -66,18 +66,18 @@ jobs:
       - name: Collect build outputs
         run: |
           mkdir -p dist
-          cp android-app/app/build/outputs/apk/debug/app-debug.apk dist/peel-it-off-debug.apk
-          cp android-app/app/build/outputs/apk/release/app-release.apk dist/peel-it-off-release.apk
+          cp android-app/app/build/outputs/apk/debug/app-debug.apk dist/pop-it-off-debug.apk
+          cp android-app/app/build/outputs/apk/release/app-release.apk dist/pop-it-off-release.apk
           ls -lh dist/
 
       - name: Upload Android APKs & WeChat MiniProgram Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: peel-it-off-builds
+          name: pop-it-off-builds
           path: |
-            dist/peel-it-off-debug.apk
-            dist/peel-it-off-release.apk
-            dist/peel-it-off-wechat-miniprogram.zip
+            dist/pop-it-off-debug.apk
+            dist/pop-it-off-release.apk
+            dist/pop-it-off-wechat-miniprogram.zip
 
       - name: Publish GitHub Release on version tag (v*)
         if: startsWith(github.ref, 'refs/tags/v')
@@ -85,6 +85,6 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            dist/peel-it-off-debug.apk
-            dist/peel-it-off-release.apk
-            dist/peel-it-off-wechat-miniprogram.zip
+            dist/pop-it-off-debug.apk
+            dist/pop-it-off-release.apk
+            dist/pop-it-off-wechat-miniprogram.zip

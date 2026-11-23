@@ -1,5 +1,5 @@
 {
-  "description": "《撕个痛快！》微信小程序工程配置",
+  "description": "《捏个痛快！》微信小程序工程配置",
   "packOptions": {
     "ignore": [
       {
@@ -39,6 +39,6 @@
   "compileType": "miniprogram",
   "libVersion": "3.4.0",
   "appid": "touristappid",
-  "projectname": "peel-it-off-wechat",
+  "projectname": "pop-it-off-wechat",
   "condition": {}
 }

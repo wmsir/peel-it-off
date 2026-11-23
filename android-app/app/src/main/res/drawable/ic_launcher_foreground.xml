@@ -4,20 +4,32 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- 底部晴空蓝胶带 -->
+    <!-- 左上草莓果冻泡 -->
     <path
-        android:fillColor="#118AB2"
-        android:pathData="M24,62 L76,28 L86,44 L34,78 Z" />
-    <!-- 中间柠檬黄胶带 -->
+        android:fillColor="#E11D48"
+        android:pathData="M37,37 m-16,0 a16,16 0 1,0 32,0 a16,16 0 1,0 -32,0" />
     <path
-        android:fillColor="#F4B400"
-        android:pathData="M24,38 L84,56 L78,74 L18,56 Z" />
-    <!-- 顶层樱桃红主胶带（带翘起折角） -->
+        android:fillColor="#FDA4AF"
+        android:pathData="M31,31 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" />
+    <!-- 右上柠檬鼓③大泡 -->
     <path
-        android:fillColor="#EF476F"
-        android:pathData="M26,48 L72,34 L82,52 L32,66 Z" />
-    <!-- 胶带翘起的亮粉反光折角 -->
+        android:fillColor="#EAB308"
+        android:pathData="M71,37 m-18,0 a18,18 0 1,0 36,0 a18,18 0 1,0 -36,0" />
     <path
-        android:fillColor="#FF9BB3"
-        android:pathData="M72,34 L82,52 L67,48 Z" />
+        android:fillColor="#FEF08A"
+        android:pathData="M65,30 m-7,0 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0" />
+    <!-- 左下薄荷绿泡 -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M37,71 m-16,0 a16,16 0 1,0 32,0 a16,16 0 1,0 -32,0" />
+    <path
+        android:fillColor="#6EE7B7"
+        android:pathData="M31,65 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" />
+    <!-- 右下汽水蓝彩虹连爆泡 -->
+    <path
+        android:fillColor="#0284C7"
+        android:pathData="M71,71 m-17,0 a17,17 0 1,0 34,0 a17,17 0 1,0 -34,0" />
+    <path
+        android:fillColor="#7DD3FC"
+        android:pathData="M65,64 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" />
 </vector>

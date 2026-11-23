@@ -4,10 +4,10 @@
   ],
   "window": {
     "backgroundTextStyle": "dark",
-    "navigationBarBackgroundColor": "#FAF6EE",
-    "navigationBarTitleText": "撕个痛快！",
+    "navigationBarBackgroundColor": "#FFFAF0",
+    "navigationBarTitleText": "捏个痛快！",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#FAF6EE"
+    "backgroundColor": "#FFFAF0"
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json"

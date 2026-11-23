@@ -3,196 +3,257 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#faf6ee" />
-  <title>撕个痛快！Peel It Off — 解压小游戏</title>
+  <title>《捏个痛快！》Pop It Off — 气压连锁解压小游戏</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="workbench-layout">
-    <!-- 主游戏手机视口（9:16 比例；Android APP 与移动端自动全屏沉浸） -->
+  <div class="app-shell">
     <main class="phone-shell" id="phone-shell">
-      <!-- 顶部导航栏 -->
-      <header class="top-hud">
-        <div class="level-pill" id="btn-level-pick" title="点击切换已解锁关卡">
-          <span class="level-num" id="hud-level">第 1 关</span>
-          <span class="level-title" id="hud-title">快递开箱</span>
+      <!-- 顶部导航 & 快捷入口 -->
+      <header class="top-bar">
+        <div class="brand-chip">
+          <span class="chapter-pill" id="hud-chapter">第1章 · 淘宝包裹</span>
+          <strong class="level-title" id="hud-level">第 1 关</strong>
         </div>
-        <div class="hud-right">
-          <div class="remain-badge" title="剩余胶带数">
-            <span class="tape-dot"></span>
-            <span id="hud-remain">12</span>
-          </div>
-          <button class="icon-btn" id="btn-sound" title="开关音效" aria-label="开关音效">🔊</button>
-          <button class="icon-btn" id="btn-restart" title="重开本关" aria-label="重开本关">↻</button>
+        <div class="endless-counter hidden" id="endless-counter">今天已捏 <strong id="endless-today-num">0</strong> 个</div>
+        <div class="top-actions">
+          <button class="icon-btn" id="btn-open-room" title="快递房间 & 收藏柜">🏠</button>
+          <button class="icon-btn" id="btn-open-calendar" title="解压日历">📅</button>
+          <button class="icon-btn" id="btn-open-skins" title="皮肤 & 赛季">🎨</button>
+          <button class="icon-btn" id="btn-open-settings" title="设置">⚙️</button>
         </div>
       </header>
 
-      <!-- 顶部：彩色胶带回收卷芯区 -->
-      <section class="spool-dock" aria-label="胶带回收卷芯区">
-        <div class="spool-row" id="spool-row"></div>
-        <div class="queue-pill" id="queue-pill">待进场卷芯：2 卷</div>
-      </section>
+      <!-- 三大模式切换条 -->
+      <nav class="mode-tabs" aria-label="游戏模式">
+        <button class="mode-tab active" data-mode="campaign" id="tab-campaign">📦 闯关拆箱</button>
+        <button class="mode-tab" data-mode="endless" id="tab-endless">🫧 无尽捏捏 <span class="tab-lock" id="lock-endless">L3解锁</span></button>
+        <button class="mode-tab" data-mode="daily" id="tab-daily">🏆 每日一捏 <span class="tab-lock" id="lock-daily">L8解锁</span></button>
+      </nav>
 
-      <!-- 中部：手指暂存槽（5格 + 1个广告扩展格） -->
-      <section class="tray-section" aria-label="临时暂存区">
-        <div class="tray-header">
-          <span class="tray-label">临时暂存区</span>
-          <span class="tray-tip" id="tray-tip">颜色未匹配将暂存于此，满格即卡死</span>
+      <!-- 闯关 / 每日目标与步数栏 -->
+      <section class="goal-bar" id="goal-bar">
+        <div class="goal-left">
+          <div class="goal-sub" id="goal-title">第一份淘宝包裹</div>
+          <div class="goal-pills" id="goal-pills"></div>
         </div>
-        <div class="tray-slots" id="tray-slots"></div>
+        <div class="goal-right">
+          <div class="moves-box" id="moves-box">
+            <span class="moves-label" id="moves-label">步数</span>
+            <strong class="moves-val" id="hud-moves">28</strong>
+          </div>
+        </div>
       </section>
 
-      <!-- 核心画布区：层叠胶带 & 终极保护膜 -->
+      <!-- 开局前可选激励道具条（仅开局第1步前显示，纯自愿不强制） -->
+      <section class="boost-strip" id="boost-strip">
+        <span class="boost-tip">开局助力：</span>
+        <button class="boost-pill" id="boost-pump">🎬 开局+1气泵</button>
+        <button class="boost-pill" id="boost-swell">🎬 全盘+1鼓胀</button>
+      </section>
+
+      <!-- 无尽捏捏模式无压力声景控制栏（永远0广告、0任务提示） -->
+      <section class="endless-bar hidden" id="endless-bar">
+        <span class="ambient-label">解压声景：</span>
+        <div class="ambient-pills">
+          <button class="amb-btn active" data-amb="off">原味噗</button>
+          <button class="amb-btn" data-amb="piano">🎹 钢琴音</button>
+          <button class="amb-btn" data-amb="rain">🌧️ 雨声</button>
+          <button class="amb-btn" data-amb="white">☁️ 白噪音</button>
+        </div>
+      </section>
+
+      <!-- 7x8 核心泡泡纸棋盘 -->
       <section class="stage-wrap" id="stage-wrap">
-        <div class="fever-strip" id="fever-strip">
-          <div class="fever-fill" id="fever-fill"></div>
-          <span class="fever-label hidden" id="fever-label">🔥 狂暴手撕中！无视箭头与冰封！</span>
-        </div>
         <canvas id="board-canvas"></canvas>
-        <div class="mode-banner hidden" id="cutter-banner">
-          <span>✂️ 破障美工刀已就绪：点击<strong>任意</strong>被压住的胶带强行抽出！</span>
-          <button class="banner-cancel" id="btn-cancel-cutter">取消</button>
-        </div>
+        <div class="preview-pill hidden" id="preview-pill"></div>
+        <div class="mega-banner hidden" id="mega-banner">捏个痛快！</div>
         <div class="film-hint hidden" id="film-hint">
           <div class="film-hint-arrow">↓</div>
-          <div class="film-hint-text">点一下或按住下滑，撕开最后一层高光保护膜！</div>
+          <div class="film-hint-text">整张捏平啦！点击或下滑撕开泡泡纸拆快递！</div>
         </div>
         <div class="toast hidden" id="game-toast"></div>
       </section>
 
-      <!-- 底部：三大救命道具栏 -->
-      <footer class="prop-bar" aria-label="救命道具栏">
-        <button class="prop-btn" id="prop-cutter" data-prop="cutter">
-          <span class="prop-icon">✂️</span>
-          <span class="prop-name">破障美工刀</span>
-          <span class="prop-badge" id="badge-cutter">1</span>
-        </button>
-        <button class="prop-btn" id="prop-shuffle" data-prop="shuffle">
-          <span class="prop-icon">🌀</span>
-          <span class="prop-name">换色洗牌</span>
-          <span class="prop-badge" id="badge-shuffle">1</span>
-        </button>
-        <button class="prop-btn" id="prop-magnet" data-prop="magnet">
-          <span class="prop-icon">🧲</span>
-          <span class="prop-name">一键收卷</span>
-          <span class="prop-badge" id="badge-magnet">1</span>
-        </button>
+      <!-- 底部轻量辅助栏 -->
+      <footer class="bottom-bar" id="bottom-bar">
+        <button class="foot-btn" id="btn-restart">🔁 重开本关</button>
+        <button class="foot-btn" id="btn-hint-ai">💡 策略提示</button>
+        <button class="foot-btn season-btn" id="btn-open-season">🛍️ 双十一赛季</button>
       </footer>
 
-      <!-- 全屏飞行丝带 & 粒子礼花画布 -->
-      <canvas id="fx-canvas"></canvas>
-
-      <!-- 弹窗：移动端/Android 选关面板 -->
-      <div class="modal-backdrop hidden" id="level-modal">
-        <div class="modal-card">
-          <h2 class="modal-title">选择体验关卡</h2>
-          <div class="mobile-jump-list" id="mobile-jump-list"></div>
-          <button class="btn-ghost" id="btn-close-level-modal">关闭</button>
-        </div>
-      </div>
-
-      <!-- 弹窗：模拟激励视频广告（Android 接 AdMob/穿山甲后自动走原生 SDK） -->
-      <div class="modal-backdrop hidden" id="ad-modal">
-        <div class="modal-card ad-card">
-          <div class="ad-tag">激励视频广告 · IAA 变现模块</div>
-          <div class="ad-screen">
-            <div class="ad-emoji">🍜💻</div>
-            <div class="ad-headline" id="ad-reward-title">正在解锁奖励...</div>
-            <p class="ad-sub">破产程序员自救广告位<br/>本条广告预估贡献收益 <strong>+¥0.028</strong></p>
-            <div class="ad-progress-track">
-              <div class="ad-progress-fill" id="ad-progress-fill"></div>
-            </div>
-            <div class="ad-countdown" id="ad-countdown">广告剩余 2.4 秒...</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 弹窗：卡死失败 / 复活 -->
+      <!-- 弹窗：步数耗尽 -->
       <div class="modal-backdrop hidden" id="fail-modal">
-        <div class="modal-card fail-card">
-          <div class="modal-emoji">😵‍💫</div>
-          <h2 class="modal-title">胶带缠成死结了！</h2>
-          <p class="modal-desc" id="fail-desc">只差最后几条就通关了，甘心重来吗？</p>
-          <button class="btn-primary ad-cta" id="btn-revive">
-            <span>🎬 看广告复活（清空暂存区并收卷）</span>
-          </button>
-          <button class="btn-ghost" id="btn-fail-restart">不看广告，重新撕这关</button>
+        <div class="modal-card">
+          <div class="modal-emoji">🫧</div>
+          <h2 class="modal-title">步数刚好用完啦</h2>
+          <p class="modal-desc" id="fail-desc">再撑几步就能捏穿这箱泡泡纸！</p>
+          <button class="btn-primary ad-cta" id="btn-revive-moves">🎬 看视频免费续 +5 步（限1次）</button>
+          <button class="btn-ghost" id="btn-fail-restart">立刻重来（无体力限制）</button>
         </div>
       </div>
 
-      <!-- 弹窗：通关彩蛋展示 -->
+      <!-- 弹窗：通关拆箱展柜 -->
       <div class="modal-backdrop hidden" id="win-modal">
         <div class="modal-card win-card">
-          <div class="win-stamp">强迫症极度舒适 ✓</div>
-          <div class="prize-reveal" id="prize-reveal">
-            <div class="prize-icon" id="prize-icon">🍜</div>
-            <div class="prize-name" id="prize-name">防脱洗发水 + 5包牛肉面</div>
-            <div class="prize-quote" id="prize-quote">“把烦心事一条条撕光的感觉，真爽！”</div>
+          <div class="win-stars" id="win-stars">★★★</div>
+          <div class="win-stamp" id="win-stamp">气泡全捏平 ✓</div>
+          <div class="prize-reveal">
+            <div class="prize-icon" id="prize-icon">🧦</div>
+            <div class="prize-name" id="prize-name">云朵草莓袜</div>
+            <div class="prize-quote" id="prize-quote">“第一单快递开箱，捏两下就爆！”</div>
           </div>
           <div class="win-stats">
-            <div class="stat-item">
-              <span class="stat-label">撕掉胶带</span>
-              <span class="stat-val" id="win-tapes">12 条</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">最高连击</span>
-              <span class="stat-val" id="win-combo">x6</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">击败全国</span>
-              <span class="stat-val" id="win-rank">94%</span>
+            <div class="stat-item"><span class="stat-label">最大连爆</span><strong class="stat-val" id="win-chain">6 连</strong></div>
+            <div class="stat-item"><span class="stat-label">剩余步数</span><strong class="stat-val" id="win-moves">4 步</strong></div>
+            <div class="stat-item"><span class="stat-label">破泡总数</span><strong class="stat-val" id="win-pops">68 个</strong></div>
+          </div>
+          <button class="btn-secondary hidden" id="btn-upgrade-prize">🎬 升级精致闪耀版 + 摆入房间（可跳过）</button>
+          <button class="btn-primary" id="btn-next-level">拆下一箱快递 →</button>
+          <button class="btn-ghost" id="btn-win-room">🏠 去摆放我的快递房间</button>
+        </div>
+      </div>
+
+      <!-- 弹窗：每日一捏结算卡 -->
+      <div class="modal-backdrop hidden" id="daily-modal">
+        <div class="modal-card">
+          <div class="win-stamp" id="daily-date-badge">每日一捏 · 全服同图</div>
+          <h2 class="modal-title">今日 15 步挑战完成！</h2>
+          <div class="daily-preview-wrap">
+            <canvas id="daily-thumb" width="140" height="160"></canvas>
+            <div class="daily-metrics">
+              <div>最大单次连锁：<strong id="daily-best-chain">0 连</strong></div>
+              <div>全服百分位：<strong id="daily-pct">超越 88% 玩家</strong></div>
+              <div>好友今日榜：<strong id="daily-rank">暂居第 2 名</strong></div>
             </div>
           </div>
-          <button class="btn-primary" id="btn-next-level">撕下一关 →</button>
-          <button class="btn-ghost" id="btn-share-mock">📤 炫耀战绩</button>
+          <button class="btn-primary" id="btn-share-daily">📤 复制每日战绩卡片</button>
+          <button class="btn-ghost" id="btn-daily-close">返回继续</button>
+        </div>
+      </div>
+
+      <!-- 弹窗：快递房间 & 《撕个痛快！》共享收藏柜 -->
+      <div class="modal-backdrop hidden" id="room-modal">
+        <div class="modal-card wide-card">
+          <div class="modal-head-row">
+            <h2>🏠 我的快递房间（拖拽自由摆放）</h2>
+            <button class="close-x" id="btn-close-room">✕</button>
+          </div>
+          <div class="room-tabs" id="room-tabs"></div>
+          <div class="room-stage" id="room-stage">
+            <div class="room-title-badge" id="room-title-badge">出租屋卧室 (0/5)</div>
+            <div class="room-items-layer" id="room-items-layer"></div>
+          </div>
+          <div class="shared-cabinet">
+            <div class="cabinet-head">
+              <strong>🎁 “痛快”系列共享收藏柜（《捏个痛快！》×《撕个痛快！》）</strong>
+              <span class="cabinet-sub" id="sibling-summary">两款解压佳作进度互通</span>
+            </div>
+            <div class="cabinet-items" id="sibling-cabinet-items"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 弹窗：解压日历 -->
+      <div class="modal-backdrop hidden" id="calendar-modal">
+        <div class="modal-card">
+          <div class="modal-head-row">
+            <h2>📅 7日解压日历</h2>
+            <button class="close-x" id="btn-close-calendar">✕</button>
+          </div>
+          <p class="modal-desc">每天捏满 100 个气泡自动点亮一格！连续 7 天送限定 <strong>🐱 猫爪肉垫泡</strong> 皮肤（断签不惩罚）。</p>
+          <div class="cal-progress">今日进度：<strong id="cal-today-num">0</strong> / 100 个</div>
+          <div class="cal-grid" id="cal-grid"></div>
+          <button class="btn-primary" id="btn-claim-cal">确认 / 查看猫爪皮肤</button>
+        </div>
+      </div>
+
+      <!-- 弹窗：泡泡皮肤 & 双十一赛季 -->
+      <div class="modal-backdrop hidden" id="skin-modal">
+        <div class="modal-card wide-card">
+          <div class="modal-head-row">
+            <h2>🎨 泡泡纸皮肤 & 主题商店</h2>
+            <button class="close-x" id="btn-close-skins">✕</button>
+          </div>
+          <div class="skin-list" id="skin-list"></div>
+          <div class="vip-banner" id="vip-banner">
+            <div>
+              <strong>👑 痛快畅玩年卡（¥30/年）</strong>
+              <div class="vip-sub">免激励广告直接领开局道具/续步 + 每日赠送 3 次助力</div>
+            </div>
+            <button class="btn-mini" id="btn-toggle-vip">体验免广告特权</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 弹窗：双十一限定赛季 10 关 -->
+      <div class="modal-backdrop hidden" id="season-modal">
+        <div class="modal-card">
+          <div class="modal-head-row">
+            <h2>🛍️ 双十一限定赛季（4周限时）</h2>
+            <button class="close-x" id="btn-close-season">✕</button>
+          </div>
+          <p class="modal-desc">10 关双十一囤货限定挑战，全部通关解锁 <strong>🎫 复古车票泡</strong> 限定皮肤与双十一房间！</p>
+          <div class="season-grid" id="season-grid"></div>
+        </div>
+      </div>
+
+      <!-- 弹窗：设置 -->
+      <div class="modal-backdrop hidden" id="settings-modal">
+        <div class="modal-card">
+          <div class="modal-head-row">
+            <h2>⚙️ 游戏设置</h2>
+            <button class="close-x" id="btn-close-settings">✕</button>
+          </div>
+          <div class="setting-row">
+            <span>🔊 ASMR 解压音效</span>
+            <button class="toggle-btn" id="set-sound">开启</button>
+          </div>
+          <div class="setting-row">
+            <span>📳 线性马达微震触感</span>
+            <button class="toggle-btn" id="set-haptics">开启</button>
+          </div>
+          <div class="setting-row">
+            <span>👁️ 色弱辅助加粗几何记号（▲●◆★■♥）</span>
+            <button class="toggle-btn" id="set-colorblind">关闭</button>
+          </div>
+          <button class="btn-primary" id="btn-done-settings">保存并返回</button>
+        </div>
+      </div>
+
+      <!-- 弹窗：模拟激励视频播放 -->
+      <div class="modal-backdrop hidden" id="ad-modal">
+        <div class="modal-card ad-card">
+          <div class="ad-badge">激励视频演示（可随时接入穿山甲/微信流量主）</div>
+          <h3 id="ad-title">看视频领奖励</h3>
+          <div class="ad-progress-track"><div class="ad-progress-fill" id="ad-progress-fill"></div></div>
+          <p class="ad-countdown" id="ad-countdown">还剩 2 秒即可领取…</p>
         </div>
       </div>
     </main>
 
-    <!-- 桌面浏览器调试台（在 Android APP 和手机屏幕下自动隐藏） -->
-    <aside class="dev-panel" aria-label="开发者验证面板">
+    <!-- 桌面开发调试台（移动端及 Android WebView 下自动隐藏） -->
+    <aside class="dev-panel" aria-label="开发与设计预览台">
       <div class="dev-header">
-        <span class="dev-badge">Web / Android 双端源</span>
-        <h1>《撕个痛快！》</h1>
-        <p class="dev-subtitle">全民解压策略烧脑版 v1.2.0</p>
+        <span class="dev-badge">Web / Android / 微信三端同源</span>
+        <h1>《捏个痛快！》</h1>
+        <p class="dev-subtitle">气压连锁解压消除 v2.0.0</p>
       </div>
-
       <div class="dev-card">
-        <h3>🎧 玩法与机制（不再只是无脑点！）</h3>
+        <h3>🫧 核心玩法亮点</h3>
         <ul class="dev-list">
-          <li><strong>🏹 单向箭头贴（L2起）</strong>：只能沿箭头方向抽离，前方有胶带挡路会顶撞回弹！</li>
-          <li><strong>❓ 银色刮刮盲盒（L3起）</strong>：压在下面看不出颜色，揭开上层后瞬间翻面揭晓！</li>
-          <li><strong>❄️ 冰封火漆锁（L4起）</strong>：冻住不能直接撕，<strong>收满任意 1 卷</strong>即可震碎 1 层冰封！</li>
-          <li><strong>💣 倒计时引信（L5起）</strong>：露头后每次操作倒数 1 步，归零前必须抢先撕掉拆弹！</li>
-          <li><strong>🔮 下一卷颜色预告</strong>：顶部实时预告下 2 卷颜色，巧用暂存区卡位实现连消反吸！</li>
-          <li><strong>🔥 狂暴手撕 &amp; 顺向划撕</strong>：沿翘角方向滑动撕拉加速充能，满槽 6 秒无视箭头与冰封！</li>
+          <li><strong>一笔划捏爆（最少2个）</strong>：8 方向划同色泡，可沿原路退回；6连生气泵，9连生彩虹泡！</li>
+          <li><strong>气压波纹连锁</strong>：邻格送气叠加，鼓③自爆逐波扩，单步自爆 ≥ 8 掉大气球，≥ 10 触发慢动作！</li>
+          <li><strong>7大物理障碍</strong>：胶带封口、漏气硬化、双层泡、冰冻泡、硬纸板、钢钉、小猫爪！</li>
+          <li><strong>无尽零广告</strong>：无尽捏捏配钢琴/雨声/白噪音；通关后整张捏平撕开拆快递！</li>
         </ul>
       </div>
-
-      <div class="dev-card revenue-card">
-        <h3>💰 模拟 IAA 广告账本（按 eCPM ¥28 估）</h3>
-        <div class="rev-grid">
-          <div class="rev-metric">
-            <span class="rev-label">本局触发广告</span>
-            <strong class="rev-val" id="dev-ad-count">0 次</strong>
-          </div>
-          <div class="rev-metric">
-            <span class="rev-label">单用户估收</span>
-            <strong class="rev-val accent" id="dev-ad-money">¥0.000</strong>
-          </div>
-          <div class="rev-metric">
-            <span class="rev-label">若 5000 DAU 日收</span>
-            <strong class="rev-val" id="dev-dau-money">¥0 / 天</strong>
-          </div>
-          <div class="rev-metric">
-            <span class="rev-label">距回本 ¥2000</span>
-            <strong class="rev-val" id="dev-breakeven">待触发</strong>
-          </div>
-        </div>
-      </div>
-
       <div class="dev-card">
-        <h3>🧪 快速选关调试</h3>
+        <h3>🧪 快速选关 & 模式调试</h3>
+        <div class="dev-tools-row">
+          <button class="btn-mini" id="dev-unlock-all">解锁全部模式 & 30关预览</button>
+          <button class="btn-mini" id="dev-cal-add">+100日历捏泡</button>
+        </div>
         <div class="level-jump-grid" id="level-jump-grid"></div>
       </div>
     </aside>

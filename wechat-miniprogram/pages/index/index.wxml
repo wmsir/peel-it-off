@@ -1,225 +1,239 @@
-<view class="game-page">
-  <!-- 顶部 HUD -->
-  <view class="top-hud">
-    <view class="level-pill" bindtap="onToggleLevelDrawer">
-      <text class="level-num">第 {{levelNum}} 关</text>
-      <text class="level-title">{{levelTitle}} ▾</text>
+<view class="app-wrap">
+  <!-- 顶栏：关卡信息 / 无尽计数 + 收藏/日历/皮肤/设置 -->
+  <view class="top-bar">
+    <view wx:if="{{mode !== 'endless'}}" class="brand-chip">
+      <text class="chapter-pill">{{chapterText}}</text>
+      <text class="level-title">{{levelText}}</text>
     </view>
-    <view class="hud-right">
-      <view class="remain-badge">
-        <view class="tape-dot"></view>
-        <text class="remain-num">{{remainCount}}</text>
-      </view>
-      <view class="icon-btn" bindtap="onToggleSound">{{soundOn ? '🔊' : '🔇'}}</view>
-      <view class="icon-btn" bindtap="onRestart">↻</view>
+    <view wx:else class="endless-counter">今天已捏 {{endlessTodayText}} 个</view>
+
+    <view class="top-actions">
+      <view class="icon-btn" bindtap="onOpenRoom">🏠</view>
+      <view class="icon-btn" bindtap="onOpenCalendar">📅</view>
+      <view class="icon-btn" bindtap="onOpenSkins">🎨</view>
+      <view class="icon-btn" bindtap="onOpenSettings">⚙️</view>
     </view>
   </view>
 
-  <!-- 顶部：彩色胶带回收卷芯区 -->
-  <view class="spool-dock">
-    <view class="spool-row">
-      <view
-        wx:for="{{spoolsView}}"
-        wx:key="slotIdx"
-        class="spool-slot {{item.locked ? 'locked' : (item.empty ? 'empty' : 'active')}} {{item.popping ? 'popping' : ''}} {{item.bumping ? 'bump' : ''}}"
-        style="{{!item.locked && !item.empty ? 'border-color:' + item.colorHex + ';' : ''}}"
-        data-idx="{{item.slotIdx}}"
-        bindtap="onSpoolTap"
-      >
-        <block wx:if="{{item.locked}}">
-          <text class="spool-locked-icon">🎬</text>
-          <text class="spool-locked-text">+1 回收卷芯</text>
-        </block>
-        <block wx:elif="{{item.empty}}">
-          <text class="spool-empty-text">已清空 ✓</text>
-        </block>
-        <block wx:else>
-          <view class="spool-core-wrap">
-            <view
-              class="spool-ring"
-              style="background: conic-gradient({{item.colorHex}} {{item.fillPct}}%, #e9e1d4 0);"
-            >
-              <view class="spool-hole"></view>
-            </view>
-            <view class="spool-meta">
-              <text class="spool-color-name">{{item.colorName}}</text>
-              <view class="spool-pips">
-                <view
-                  wx:for="{{item.pips}}"
-                  wx:for-item="pip"
-                  wx:key="k"
-                  class="spool-pip {{pip.filled ? 'filled' : ''}}"
-                  style="{{pip.filled ? 'background:' + item.colorHex + ';' : ''}}"
-                ></view>
-              </view>
-            </view>
-          </view>
-        </block>
-      </view>
+  <!-- 三大模式切换 -->
+  <view class="mode-tabs">
+    <view class="mode-tab {{(mode === 'campaign' || mode === 'season') ? 'active' : ''}}" bindtap="onSwitchMode" data-mode="campaign">📦 闯关拆箱</view>
+    <view class="mode-tab {{mode === 'endless' ? 'active' : ''}}" bindtap="onSwitchMode" data-mode="endless">
+      <text>🫧 无尽捏捏</text>
+      <text wx:if="{{!endlessUnlocked}}" class="tab-lock">L3解锁</text>
     </view>
-    <view class="queue-pill">
-      <block wx:if="{{nextPreview.length > 0}}">
-        <text>下一卷预告：</text>
-        <view wx:for="{{nextPreview}}" wx:key="k" class="next-dot" style="background: {{item.hex}};">{{item.mark}}</view>
-        <text class="queue-rem">（{{queueText}}）</text>
-      </block>
-      <text wx:else>{{queueText}}</text>
+    <view class="mode-tab {{mode === 'daily' ? 'active' : ''}}" bindtap="onSwitchMode" data-mode="daily">
+      <text>🏆 每日一捏</text>
+      <text wx:if="{{!dailyUnlocked}}" class="tab-lock">L8解锁</text>
     </view>
   </view>
 
-  <!-- 中部：手指暂存槽（5格 + 1个广告扩展格） -->
-  <view class="tray-section">
-    <view class="tray-header">
-      <text class="tray-label">临时暂存区</text>
-      <text class="tray-tip {{trayDanger ? 'danger' : ''}}">{{trayTipText}}</text>
-    </view>
-    <view class="tray-slots">
-      <view
-        wx:for="{{trayView}}"
-        wx:key="slotIdx"
-        class="tray-slot {{item.locked ? 'locked' : ''}} {{item.dangerPulse ? 'danger-pulse' : ''}}"
-        data-idx="{{item.slotIdx}}"
-        bindtap="onTrayTap"
-      >
-        <block wx:if="{{item.locked}}">
-          <text class="tray-lock-badge">🎬</text>
-          <text class="tray-lock-label">+1槽位</text>
-        </block>
-        <block wx:elif="{{item.colorHex}}">
-          <view class="tray-tape-chip" style="background: {{item.colorHex}};">
-            <text class="tray-chip-mark">{{item.mark}}</text>
-          </view>
-        </block>
+  <!-- 闯关/每日目标栏 -->
+  <view wx:if="{{mode !== 'endless'}}" class="goal-bar">
+    <view class="goal-left">
+      <text class="goal-sub">{{stageTitle}}</text>
+      <view class="goal-pills">
+        <view wx:for="{{goalPills}}" wx:key="k" class="goal-pill {{item.done ? 'done' : ''}}">
+          <view wx:if="{{item.hex}}" class="goal-dot" style="background: {{item.hex}};">{{item.mark}}</view>
+          <text>{{item.text}}</text>
+        </view>
       </view>
+    </view>
+    <view class="moves-box {{movesLeft <= 3 ? 'low' : ''}}">
+      <text class="moves-label">{{mode === 'daily' ? '剩余步' : '步数'}}</text>
+      <text class="moves-val">{{movesLeft}}</text>
     </view>
   </view>
 
-  <!-- 核心 Canvas 2D 舞台 -->
-  <view class="stage-wrap {{cutterMode ? 'cutter-active' : ''}} {{feverActive ? 'fever-active' : ''}}">
-    <view class="fever-strip">
-      <view class="fever-fill" style="width: {{feverPct}}%;"></view>
-      <view wx:if="{{feverActive}}" class="fever-label">🔥 狂暴手撕中！无视箭头与冰封！</view>
+  <!-- 开局助力条（仅第1步前） -->
+  <view wx:if="{{showPreBoost}}" class="boost-strip">
+    <text class="boost-tip">开局助力：</text>
+    <view class="boost-pill" bindtap="onBoostPump">🎬 +1气泵</view>
+    <view class="boost-pill" bindtap="onBoostSwell">🎬 全盘+1鼓胀</view>
+  </view>
+
+  <!-- 无尽模式声景条（永远0广告、0任务提示） -->
+  <view wx:if="{{mode === 'endless'}}" class="endless-bar">
+    <text class="ambient-label">声景：</text>
+    <view class="ambient-pills">
+      <view class="amb-btn {{ambientPack === 'off' ? 'active' : ''}}" bindtap="onSetAmbient" data-amb="off">原味噗</view>
+      <view class="amb-btn {{ambientPack === 'piano' ? 'active' : ''}}" bindtap="onSetAmbient" data-amb="piano">🎹 钢琴音</view>
+      <view class="amb-btn {{ambientPack === 'rain' ? 'active' : ''}}" bindtap="onSetAmbient" data-amb="rain">🌧️ 雨声</view>
+      <view class="amb-btn {{ambientPack === 'white' ? 'active' : ''}}" bindtap="onSetAmbient" data-amb="white">☁️ 白噪音</view>
     </view>
+  </view>
+
+  <!-- 7x8 核心泡泡纸 Canvas 舞台 -->
+  <view class="stage-wrap">
     <canvas
+      id="boardCanvas"
       type="2d"
-      id="board-canvas"
       class="board-canvas"
       disable-scroll="true"
-      bindtouchstart="onCanvasTouchStart"
-      bindtouchmove="onCanvasTouchMove"
-      bindtouchend="onCanvasTouchEnd"
-      bindtouchcancel="onCanvasTouchEnd"
+      bindtouchstart="onBoardTouchStart"
+      bindtouchmove="onBoardTouchMove"
+      bindtouchend="onBoardTouchEnd"
+      bindtouchcancel="onBoardTouchEnd"
     ></canvas>
 
-    <view wx:if="{{cutterMode}}" class="mode-banner">
-      <text class="banner-text">✂️ 破障美工刀就绪：点任意被压住胶带抽出</text>
-      <view class="banner-cancel" bindtap="onCancelCutter">取消</view>
-    </view>
-
+    <view wx:if="{{previewText}}" class="preview-pill">{{previewText}}</view>
+    <view wx:if="{{megaBannerText}}" class="mega-banner">{{megaBannerText}}</view>
     <view wx:if="{{showFilmHint}}" class="film-hint">
-      <text class="film-hint-arrow">↓</text>
-      <text>点一下或下滑，撕开最后一层保护膜！</text>
+      <text class="film-arrow">↓</text>
+      <text class="film-text">整张捏平啦！点击或下滑撕开泡泡纸拆快递！</text>
     </view>
-
     <view wx:if="{{toastMsg}}" class="toast">{{toastMsg}}</view>
   </view>
 
-  <!-- 底部三大救命道具栏 -->
-  <view class="prop-bar">
-    <view class="prop-btn {{cutterMode ? 'selected' : ''}}" data-prop="cutter" bindtap="onPropTap">
-      <text class="prop-icon">✂️</text>
-      <text class="prop-name">破障美工刀</text>
-      <view class="prop-badge {{propsView.cutter <= 0 ? 'ad-badge' : ''}}">
-        {{propsView.cutter > 0 ? propsView.cutter : '🎬'}}
-      </view>
-    </view>
-    <view class="prop-btn" data-prop="shuffle" bindtap="onPropTap">
-      <text class="prop-icon">🌀</text>
-      <text class="prop-name">换色洗牌</text>
-      <view class="prop-badge {{propsView.shuffle <= 0 ? 'ad-badge' : ''}}">
-        {{propsView.shuffle > 0 ? propsView.shuffle : '🎬'}}
-      </view>
-    </view>
-    <view class="prop-btn" data-prop="magnet" bindtap="onPropTap">
-      <text class="prop-icon">🧲</text>
-      <text class="prop-name">一键收卷</text>
-      <view class="prop-badge {{propsView.magnet <= 0 ? 'ad-badge' : ''}}">
-        {{propsView.magnet > 0 ? propsView.magnet : '🎬'}}
-      </view>
-    </view>
+  <!-- 底部操作栏 -->
+  <view wx:if="{{mode !== 'endless'}}" class="bottom-bar">
+    <view class="foot-btn" bindtap="onRestart">🔁 重开本关</view>
+    <view class="foot-btn" bindtap="onHintAI">💡 策略提示</view>
+    <view class="foot-btn season-btn" bindtap="onOpenSeason">🛍️ 双十一赛季</view>
   </view>
 
-  <!-- 选关快速面板 -->
-  <view wx:if="{{levelDrawerVisible}}" class="modal-backdrop" bindtap="onToggleLevelDrawer">
-    <view class="modal-card" catchtap="noop">
-      <view class="modal-title">选择体验关卡</view>
-      <scroll-view scroll-y="true" class="jump-list">
-        <view
-          wx:for="{{levelChoices}}"
-          wx:key="idx"
-          class="jump-item {{levelNum === item.idx + 1 ? 'active' : ''}}"
-          data-lvl="{{item.idx}}"
-          bindtap="onJumpLevel"
-        >
-          第 {{item.idx + 1}} 关 · {{item.title}} ({{item.count}}条)
-        </view>
-      </scroll-view>
-      <button class="btn-ghost" bindtap="onToggleLevelDrawer">关闭</button>
-    </view>
-  </view>
-
-  <!-- 模拟激励视频广告弹窗（配置真实 adUnitId 后自动改走微信流量主） -->
-  <view wx:if="{{adModal.visible}}" class="modal-backdrop">
+  <!-- 失败弹窗 -->
+  <view wx:if="{{failModal.visible}}" class="modal-mask">
     <view class="modal-card">
-      <view class="ad-tag">微信流量主激励视频（演示模式）</view>
-      <view class="ad-screen">
-        <view class="ad-emoji">🍜💻</view>
-        <view class="ad-headline">{{adModal.title}}</view>
-        <view class="ad-sub">填写 utils/ad.js 中的 adUnitId 即可切换真实流量主广告</view>
-        <view class="ad-progress-track">
-          <view class="ad-progress-fill" style="width: {{adModal.progressPct}}%;"></view>
-        </view>
-        <view class="ad-countdown">{{adModal.countdownText}}</view>
-      </view>
+      <text class="modal-emoji">🫧</text>
+      <text class="modal-title">步数刚好用完啦</text>
+      <text class="modal-desc">{{failModal.desc}}</text>
+      <button wx:if="{{!revivedThisRun}}" class="btn-primary" bindtap="onReviveMoves">🎬 看视频免费续 +5 步</button>
+      <button class="btn-ghost" bindtap="onFailRestart">立刻重来（无体力限制）</button>
     </view>
   </view>
 
-  <!-- 卡死失败 / 复活弹窗 -->
-  <view wx:if="{{failModal.visible}}" class="modal-backdrop">
+  <!-- 通关拆箱弹窗 -->
+  <view wx:if="{{winModal.visible}}" class="modal-mask">
     <view class="modal-card">
-      <view class="modal-emoji">😵‍💫</view>
-      <view class="modal-title">胶带缠成死结了！</view>
-      <view class="modal-desc">{{failModal.desc}}</view>
-      <button class="btn-primary ad-cta" bindtap="onReviveTap">🎬 看广告复活（清空暂存区并收卷）</button>
-      <button class="btn-ghost" bindtap="onFailRestartTap">不看广告，重新撕这关</button>
-    </view>
-  </view>
-
-  <!-- 通关彩蛋弹窗 -->
-  <view wx:if="{{winModal.visible}}" class="modal-backdrop">
-    <view class="modal-card">
-      <view class="win-stamp">强迫症极度舒适 ✓</view>
-      <view class="prize-reveal">
-        <view class="prize-icon">{{winModal.prizeIcon}}</view>
-        <view class="prize-name">{{winModal.prizeName}}</view>
-        <view class="prize-quote">{{winModal.prizeQuote}}</view>
+      <text class="win-stars">{{winModal.starsStr}}</text>
+      <text class="win-stamp">{{winModal.stamp}}</text>
+      <view class="prize-box">
+        <text class="prize-icon">{{winModal.icon}}</text>
+        <text class="prize-name">{{winModal.name}}</text>
+        <text class="prize-quote">{{winModal.quote}}</text>
       </view>
       <view class="win-stats">
-        <view class="stat-item">
-          <text class="stat-label">撕掉胶带</text>
-          <text class="stat-val">{{winModal.totalTapes}} 条</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-label">最高连击</text>
-          <text class="stat-val">x{{winModal.maxCombo}}</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-label">击败全国</text>
-          <text class="stat-val">{{winModal.rankPct}}%</text>
+        <view class="stat-item"><text class="stat-l">最大连爆</text><text class="stat-v">{{winModal.chain}}连</text></view>
+        <view class="stat-item"><text class="stat-l">剩余步数</text><text class="stat-v">{{winModal.moves}}步</text></view>
+        <view class="stat-item"><text class="stat-l">破泡总数</text><text class="stat-v">{{winModal.pops}}个</text></view>
+      </view>
+      <button wx:if="{{winModal.canUpgrade}}" class="btn-secondary" bindtap="onUpgradePrize">🎬 升级 3★ 精致闪耀版（可跳过）</button>
+      <button class="btn-primary" bindtap="onNextLevel">拆下一箱快递 →</button>
+      <button class="btn-ghost" bindtap="onOpenRoomFromWin">🏠 去我的快递房间</button>
+    </view>
+  </view>
+
+  <!-- 每日一捏战绩卡 -->
+  <view wx:if="{{dailyModal.visible}}" class="modal-mask">
+    <view class="modal-card">
+      <text class="win-stamp">每日一捏 · 全服同图</text>
+      <text class="modal-title">今日 15 步挑战完成！</text>
+      <text class="modal-desc">最大单次连锁：{{dailyModal.chain}} 连爆 · {{dailyModal.pct}}</text>
+      <button class="btn-primary" open-type="share">📤 分享给微信好友PK同图</button>
+      <button class="btn-ghost" bindtap="onCloseDaily">再来一局刷新纪录</button>
+    </view>
+  </view>
+
+  <!-- 快递房间 & 共享收藏柜 -->
+  <view wx:if="{{roomModal.visible}}" class="modal-mask">
+    <view class="modal-card wide">
+      <view class="modal-head">
+        <text class="head-t">🏠 我的快递房间（点击移动摆放）</text>
+        <text class="close-x" bindtap="onCloseModal" data-key="roomModal">✕</text>
+      </view>
+      <scroll-view scroll-x="true" class="room-tabs">
+        <view wx:for="{{roomModal.rooms}}" wx:key="ch" class="room-tab {{roomModal.activeCh === item.ch ? 'active' : ''}}" bindtap="onSelectRoom" data-ch="{{item.ch}}">{{item.name}}</view>
+      </scroll-view>
+      <view class="room-stage" style="background: {{roomModal.stageBg}};" bindtap="onMoveSelectedRoomItem">
+        <text class="room-badge">{{roomModal.badge}}</text>
+        <view wx:for="{{roomModal.items}}" wx:key="lvl" class="room-chip {{item.fine ? 'fine' : ''}} {{roomModal.selectedLvl === item.lvl ? 'sel' : ''}}" style="left: {{item.x}}%; top: {{item.y}}%;" catchtap="onPickRoomItem" data-lvl="{{item.lvl}}">{{item.icon}}</view>
+      </view>
+      <view class="shared-cab">
+        <text class="cab-title">🎁 “痛快”系列共享收藏柜（《捏个痛快！》×《撕个痛快！》）</text>
+        <text class="cab-sub">{{roomModal.siblingSummary}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 7日解压日历 -->
+  <view wx:if="{{calendarModal.visible}}" class="modal-mask">
+    <view class="modal-card">
+      <view class="modal-head">
+        <text class="head-t">📅 7日解压日历</text>
+        <text class="close-x" bindtap="onCloseModal" data-key="calendarModal">✕</text>
+      </view>
+      <text class="modal-desc">每天捏满 100 个气泡自动点亮，连签 7 天免费送「猫爪肉垫泡」皮肤！</text>
+      <text class="cal-prog">今日进度：{{calendarModal.todayPopped}} / 100</text>
+      <view class="cal-grid">
+        <view wx:for="{{calendarModal.days}}" wx:key="d" class="cal-day {{item.lit ? 'lit' : ''}}">
+          <text>{{item.label}}</text>
         </view>
       </view>
-      <button class="btn-primary" bindtap="onNextLevelTap">撕下一关 →</button>
-      <button class="btn-ghost" open-type="share">📤 分享战绩给微信好友</button>
+      <button class="btn-primary" bindtap="onCloseModal" data-key="calendarModal">确认</button>
+    </view>
+  </view>
+
+  <!-- 皮肤与双十一赛季 -->
+  <view wx:if="{{skinModal.visible}}" class="modal-mask">
+    <view class="modal-card wide">
+      <view class="modal-head">
+        <text class="head-t">🎨 泡泡纸皮肤商店</text>
+        <text class="close-x" bindtap="onCloseModal" data-key="skinModal">✕</text>
+      </view>
+      <view wx:for="{{skinModal.list}}" wx:key="id" class="skin-row {{item.equipped ? 'equipped' : ''}}">
+        <view class="skin-info">
+          <text class="skin-name">{{item.name}}</text>
+          <text class="skin-desc">{{item.desc}}</text>
+        </view>
+        <view class="btn-mini" bindtap="onEquipSkin" data-id="{{item.id}}">{{item.equipped ? '使用中' : '试穿/使用'}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 双十一赛季10关 -->
+  <view wx:if="{{seasonModal.visible}}" class="modal-mask">
+    <view class="modal-card">
+      <view class="modal-head">
+        <text class="head-t">🛍️ 双十一限定赛季（10关）</text>
+        <text class="close-x" bindtap="onCloseModal" data-key="seasonModal">✕</text>
+      </view>
+      <view class="season-grid">
+        <view wx:for="{{seasonModal.stages}}" wx:key="idx" class="season-cell {{item.cleared ? 'cleared' : ''}}" bindtap="onStartSeason" data-idx="{{item.idx}}">第{{item.idx + 1}}关</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 设置弹窗 -->
+  <view wx:if="{{settingsModal.visible}}" class="modal-mask">
+    <view class="modal-card">
+      <view class="modal-head">
+        <text class="head-t">⚙️ 游戏设置</text>
+        <text class="close-x" bindtap="onCloseModal" data-key="settingsModal">✕</text>
+      </view>
+      <view class="setting-row" bindtap="onToggleSetting" data-k="sound">
+        <text>🔊 ASMR 解压音效</text>
+        <text class="toggle-pill {{settings.sound ? 'on' : ''}}">{{settings.sound ? '开启' : '关闭'}}</text>
+      </view>
+      <view class="setting-row" bindtap="onToggleSetting" data-k="haptics">
+        <text>📳 手机微震触感</text>
+        <text class="toggle-pill {{settings.haptics ? 'on' : ''}}">{{settings.haptics ? '开启' : '关闭'}}</text>
+      </view>
+      <view class="setting-row" bindtap="onToggleSetting" data-k="colorblind">
+        <text>👁️ 色弱加粗几何记号</text>
+        <text class="toggle-pill {{settings.colorblind ? 'on' : ''}}">{{settings.colorblind ? '加粗' : '关闭'}}</text>
+      </view>
+      <button class="btn-primary" bindtap="onCloseModal" data-key="settingsModal">保存并返回</button>
+    </view>
+  </view>
+
+  <!-- 模拟激励视频演示窗 -->
+  <view wx:if="{{adModal.visible}}" class="modal-mask">
+    <view class="modal-card">
+      <text class="win-stamp">微信激励视频演示窗</text>
+      <text class="modal-title">{{adModal.title}}</text>
+      <view class="ad-track"><view class="ad-fill" style="width: {{adModal.pct}}%;"></view></view>
+      <text class="modal-desc">{{adModal.desc}}</text>
     </view>
   </view>
 </view>
